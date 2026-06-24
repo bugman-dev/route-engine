@@ -21,11 +21,22 @@ _locations = [
     },
 ]
 
+_cabs = [
+    {
+        "vehicleNumber":"KL01TS1001",
+        "driver":"James"
+    },
+    {
+        "vehicleNumber":"KL01TS2002",
+        "driver":"Thomas"
+    },
+]
+
 def get_locations():
     return _locations
 
-def get_num_vehicles():
-    return 1
+def get_cabs():
+    return _cabs
 
 def get_depot():
     return 0

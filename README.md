@@ -17,3 +17,9 @@ A route generation engine for office cab allocation.
 - Pydantic
 - OpenStreetMap
 - OSRM
+
+## Startup
+source .venv/bin/activate
+
+## Ending
+deactivate

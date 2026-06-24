@@ -1,15 +1,15 @@
 from utils.geo import haversine
 
-def generate_distance_matrix(locations):
+def generate_distance_matrix(waypoints):
     matrix = []
-    for origin in locations:
+    for origin in waypoints:
         row = []
-        for destination in locations:
+        for destination in waypoints:
             distance = haversine(
-                origin["latitude"],
-                origin["longitude"],
-                destination["latitude"],
-                destination["longitude"],
+                origin.latitude,
+                origin.longitude,
+                destination.latitude,
+                destination.longitude,
             )
             row.append(
                 round(distance)

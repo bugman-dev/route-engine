@@ -1,10 +1,10 @@
-def validate_capacity(locations, cabs):
+def validate_capacity(waypoints, vehicles):
 
-    employee_count = len(locations) - 1
+    employee_count = len(waypoints) - 1
     total_capacity = sum(
-        cab["capacity"]
+        vehicle.capacity
 
-        for cab in cabs
+        for vehicle in vehicles
     )
 
     if total_capacity < employee_count:

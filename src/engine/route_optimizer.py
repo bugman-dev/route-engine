@@ -4,13 +4,13 @@
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
 
-def optimize_routes(distance_matrix, cabs, depot):
+def optimize_routes(distance_matrix, vehicles, depot):
 
-    num_vehicles = len(cabs)
+    num_vehicles = len(vehicles)
 
     vehicle_capacities = [
-        cab["capacity"]
-        for cab in cabs
+        vehicle.capacity
+        for vehicle in vehicles
     ]
 
     # RoutingIndexManager
@@ -23,8 +23,8 @@ def optimize_routes(distance_matrix, cabs, depot):
     # Here we are telling OR-Tools:
     #
     # - There are 4 locations
-    # - There is 1 cab
-    # - All cabs start at Office
+    # - There is 1 vehicle
+    # - All vehicles start at Office
     manager = pywrapcp.RoutingIndexManager(
         len(distance_matrix),
         num_vehicles,

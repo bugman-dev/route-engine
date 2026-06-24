@@ -4,8 +4,9 @@
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
 
-def optimize_routes(distance_matrix, num_vehicles, depot):
+def optimize_routes(distance_matrix, cabs, depot):
 
+    num_vehicles = len(cabs)
     # RoutingIndexManager
     #
     # OR-Tools internally uses its own indexing system.
@@ -78,43 +79,31 @@ def optimize_routes(distance_matrix, num_vehicles, depot):
 
     # If a valid route was found
     if solution:
+        routes = []
 
-        # Start from vehicle 0
-        index = routing.Start(0)
-        route = []
+        for vehicle_id in range(num_vehicles):
+            # Start from vehicle 0
+            index = routing.Start(vehicle_id)
+            route = []
 
-        # Traverse the route until we reach the end
-        while not routing.IsEnd(index):
+            # Traverse the route until we reach the end
+            while not routing.IsEnd(index):
 
-            # Convert OR-Tools index to our node number
+                # Convert OR-Tools index to our node number
+                route.append(
+                    manager.IndexToNode(index)
+                )
+
+                # Move to the next location
+                index = solution.Value(
+                    routing.NextVar(index)
+                )
+
+            # Add the final location
             route.append(
                 manager.IndexToNode(index)
             )
+            routes.append(route)
 
-            # Move to the next location
-            index = solution.Value(
-                routing.NextVar(index)
-            )
-
-        # Add the final location
-        route.append(
-            manager.IndexToNode(index)
-        )
-
-        # Example output:
-        #
-        # [0, 3, 2, 1, 0]
-        #
-        # Which means:
-        #
-        # Office
-        #   ↓
-        # Employee C
-        #   ↓
-        # Employee B
-        #   ↓
-        # Employee A
-        #   ↓
-        # Office
-        return(route)
+        return(routes)
 

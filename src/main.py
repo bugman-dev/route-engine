@@ -11,7 +11,7 @@ depot = get_depot()
 
 distance_matrix = generate_distance_matrix(locations)
 
-optimized_routes = optimize_routes(distance_matrix, len(cabs), depot)
+optimized_routes = optimize_routes(distance_matrix, cabs, depot)
 
 redeable_route = create_readable_route(optimized_routes, locations, cabs)
 

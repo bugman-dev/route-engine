@@ -24,11 +24,13 @@ _locations = [
 _cabs = [
     {
         "vehicleNumber":"KL01TS1001",
-        "driver":"James"
+        "driver":"James",
+        "capacity":4
     },
     {
         "vehicleNumber":"KL01TS2002",
-        "driver":"Thomas"
+        "driver":"Thomas",
+        "capacity":7
     },
 ]
 

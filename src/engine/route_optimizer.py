@@ -4,8 +4,9 @@
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
 
-def optimize_routes(distance_matrix, num_vehicles, depot):
+def optimize_routes(distance_matrix, cabs, depot):
 
+    num_vehicles = len(cabs)
     # RoutingIndexManager
     #
     # OR-Tools internally uses its own indexing system.

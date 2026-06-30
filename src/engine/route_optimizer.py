@@ -4,9 +4,15 @@
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
 
-def optimize_routes(distance_matrix, cabs, depot):
+def optimize_routes(distance_matrix, vehicles, depot):
 
-    num_vehicles = len(cabs)
+    num_vehicles = len(vehicles)
+
+    vehicle_capacities = [
+        vehicle.capacity
+        for vehicle in vehicles
+    ]
+
     # RoutingIndexManager
     #
     # OR-Tools internally uses its own indexing system.
@@ -17,8 +23,8 @@ def optimize_routes(distance_matrix, cabs, depot):
     # Here we are telling OR-Tools:
     #
     # - There are 4 locations
-    # - There is 1 cab
-    # - All cabs start at Office
+    # - There is 1 vehicle
+    # - All vehicles start at Office
     manager = pywrapcp.RoutingIndexManager(
         len(distance_matrix),
         num_vehicles,
@@ -58,6 +64,29 @@ def optimize_routes(distance_matrix, cabs, depot):
     # Minimize the total travel distance for all cabs.
     routing.SetArcCostEvaluatorOfAllVehicles(
         transit_callback
+    )
+
+    # Every employee occupies 1 seat
+    demands = [0] + [1] * (len(distance_matrix) - 1)
+
+    def demand_callback(from_index):
+        from_node = manager.IndexToNode(
+            from_index
+        )
+        return demands[from_node]
+
+    demand_callback_index = (
+        routing.RegisterUnaryTransitCallback(
+            demand_callback
+        )
+    )
+
+    routing.AddDimensionWithVehicleCapacity(
+        demand_callback_index,
+        0,
+        vehicle_capacities,
+        True,
+        "Capacity"
     )
 
     # Configure how OR-Tools searches for a solution
@@ -105,5 +134,6 @@ def optimize_routes(distance_matrix, cabs, depot):
             )
             routes.append(route)
 
-        return(routes)
+        return routes
 
+    raise ValueError("No feasible routes found for the given inputs.")

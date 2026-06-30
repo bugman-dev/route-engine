@@ -1,11 +1,29 @@
-def create_readable_route(optimized_routes, locations, cabs):
-    lines = []
-    for (vehicle_id, route) in enumerate(optimized_routes):
-        readable_route = [locations[node]["name"] for node in route]
-        route_line = " -> ".join(readable_route)
-        cab_number = cabs[vehicle_id]["vehicleNumber"]
+from typing import List
+from ..models.route import Route
 
-        lines.append(f"Cab {cab_number}:\n{route_line}")
+def format_routes(routes, waypoints, vehicles) -> List[Route]:
+    formatted_routes = []
+    for vehicle_id, route in enumerate(routes):
+        # Skip unused vehicles
+        if len(route) <= 2:
+            continue
 
-    
-    return "\n\n".join(lines)
+        vehicle = vehicles[vehicle_id]
+        stops = []
+
+        for node in route:
+            stops.append(
+                waypoints[node].name
+            )
+
+        formatted_routes.append(
+            Route(
+                vehicle_id=vehicle.id,
+                vehicle_number=vehicle.number,
+                operator=vehicle.operator,
+                capacity=vehicle.capacity,
+                stops=stops,
+            )
+        )
+
+    return formatted_routes

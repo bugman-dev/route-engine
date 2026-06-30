@@ -1,5 +1,5 @@
-from models.waypoint import Waypoint
-from models.vehicle import Vehicle
+from .models.waypoint import Waypoint
+from .models.vehicle import Vehicle
 
 _waypoints = [
     Waypoint(

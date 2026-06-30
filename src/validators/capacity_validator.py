@@ -1,9 +1,7 @@
 def validate_capacity(waypoints, vehicles):
-
     employee_count = len(waypoints) - 1
     total_capacity = sum(
         vehicle.capacity
-
         for vehicle in vehicles
     )
 

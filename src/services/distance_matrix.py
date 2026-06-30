@@ -1,4 +1,4 @@
-from utils.geo import haversine
+from ..utils.geo import haversine
 
 def generate_distance_matrix(waypoints):
     matrix = []

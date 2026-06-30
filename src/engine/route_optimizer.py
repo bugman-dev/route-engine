@@ -68,6 +68,7 @@ def optimize_routes(distance_matrix, vehicles, depot):
 
     # Every employee occupies 1 seat
     demands = [0] + [1] * (len(distance_matrix) - 1)
+
     def demand_callback(from_index):
         from_node = manager.IndexToNode(
             from_index
@@ -133,5 +134,6 @@ def optimize_routes(distance_matrix, vehicles, depot):
             )
             routes.append(route)
 
-        return(routes)
+        return routes
 
+    raise ValueError("No feasible routes found for the given inputs.")

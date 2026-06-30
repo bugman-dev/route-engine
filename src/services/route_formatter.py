@@ -1,5 +1,7 @@
-def format_routes(routes, waypoints, vehicles):
+from typing import List
+from ..models.route import Route
 
+def format_routes(routes, waypoints, vehicles) -> List[Route]:
     formatted_routes = []
     for vehicle_id, route in enumerate(routes):
         # Skip unused vehicles
@@ -15,12 +17,13 @@ def format_routes(routes, waypoints, vehicles):
             )
 
         formatted_routes.append(
-            {
-                "vehicleNumber": vehicle.number,
-                "driver": vehicle.operator,
-                "capacity": vehicle.capacity,
-                "stops": stops,
-            }
+            Route(
+                vehicle_id=vehicle.id,
+                vehicle_number=vehicle.number,
+                operator=vehicle.operator,
+                capacity=vehicle.capacity,
+                stops=stops,
+            )
         )
 
     return formatted_routes

@@ -5,15 +5,15 @@ def display_routes(formatted_routes):
         print()
 
         print(
-            f"Cab: {route['vehicleNumber']}"
+            f"Cab: {route.vehicle_number}"
         )
 
         print(
-            f"Driver: {route['driver']}"
+            f"Driver: {route.operator}"
         )
 
         print(
             " -> ".join(
-                route["stops"]
+                route.stops
             )
         )

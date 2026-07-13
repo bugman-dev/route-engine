@@ -3,6 +3,7 @@
 import argparse
 import os
 
+from route_engine.config import load_env
 from route_engine.examples.sample_data import get_depot, get_vehicles, get_waypoints
 from route_engine.engine.route_engine import generate_routes
 from route_engine.services.distance import (
@@ -10,6 +11,8 @@ from route_engine.services.distance import (
     OsrmDistanceProvider,
 )
 from route_engine.utils.display_routes import display_routes
+
+load_env()
 
 
 def _build_distance_provider(name: str):
@@ -32,7 +35,7 @@ def main(argv=None):
         "--provider",
         choices=("haversine", "osrm"),
         default=os.environ.get("ROUTE_ENGINE_PROVIDER", "haversine"),
-        help="Distance matrix source (default: haversine). "
+        help="Distance matrix source (default from .env / ROUTE_ENGINE_PROVIDER). "
         "Use osrm for road-network distances.",
     )
     args = parser.parse_args(argv)

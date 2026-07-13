@@ -44,29 +44,37 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+Copy the sample env file and edit if needed:
+
+```bash
+# Windows
+copy .env.sample .env
+
+# macOS / Linux
+cp .env.sample .env
+```
+
+| Variable | Values | Meaning |
+|----------|--------|---------|
+| `ROUTE_ENGINE_PROVIDER` | `haversine` \| `osrm` | Distance matrix source |
+| `OSRM_BASE_URL` | URL | OSRM server (when provider is `osrm`) |
+
+`.env` is gitignored; `.env.sample` is the committed template.
+
 ## Run
 
-Haversine (default, no network):
+Uses settings from `.env`. Override on the CLI if you want:
 
 ```bash
 python -m route_engine
-```
-
-OSRM road distances (needs network; uses the public demo server by default):
-
-```bash
 python -m route_engine --provider osrm
 ```
 
-Point at your own OSRM instance:
+Example `.env` for a local OSRM instance:
 
-```bash
-# Windows PowerShell
-$env:OSRM_BASE_URL="http://localhost:5000"
-python -m route_engine --provider osrm
-
-# macOS / Linux
-OSRM_BASE_URL=http://localhost:5000 python -m route_engine --provider osrm
+```env
+ROUTE_ENGINE_PROVIDER=osrm
+OSRM_BASE_URL=http://localhost:5000
 ```
 
 You should see printed routes shaped like:

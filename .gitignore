@@ -24,7 +24,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Environment variables
+# Environment variables (keep .env.sample committed)
 .env
 
 # Logs

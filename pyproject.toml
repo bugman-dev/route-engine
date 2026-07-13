@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "route-engine"
+version = "0.1.0"
+description = "Generic multi-vehicle route generation engine (CVRP)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "ortools>=9.11",
+    "pydantic>=2.10",
+]
+
+[project.scripts]
+route-engine = "route_engine.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,14 +1,2 @@
-absl-py==2.3.1
-annotated-types==0.7.0
-immutabledict==4.3.1
-numpy==1.24.4
-ortools==9.11.4210
-pandas==2.0.3
-protobuf==5.26.1
-pydantic==2.10.6
-pydantic-core==2.27.2
-python-dateutil==2.9.0.post0
-pytz==2026.2
-six==1.17.0
-typing-extensions==4.13.2
-tzdata==2026.2
+ortools>=9.11
+pydantic>=2.10

@@ -4,6 +4,18 @@ import argparse
 import os
 
 from route_engine.config import load_env
+from route_engine.constants import (
+    COST_MODES,
+    DEFAULT_COST_MODE,
+    DEFAULT_OSRM_BASE_URL,
+    DEFAULT_PROVIDER,
+    ENV_COST,
+    ENV_OSRM_BASE_URL,
+    ENV_PROVIDER,
+    PROVIDER_HAVERSINE,
+    PROVIDER_OSRM,
+    PROVIDERS,
+)
 from route_engine.examples.sample_data import get_depot, get_vehicles, get_waypoints
 from route_engine.engine.route_engine import generate_routes
 from route_engine.services.distance import (
@@ -14,26 +26,21 @@ from route_engine.utils.display_routes import display_routes
 
 load_env()
 
-VALID_COST_MODES = ("distance", "eta")
-
 
 def _build_distance_provider(name: str):
-    if name == "haversine":
+    if name == PROVIDER_HAVERSINE:
         return HaversineDistanceProvider()
-    if name == "osrm":
-        base_url = os.environ.get(
-            "OSRM_BASE_URL",
-            "https://router.project-osrm.org",
-        )
+    if name == PROVIDER_OSRM:
+        base_url = os.environ.get(ENV_OSRM_BASE_URL, DEFAULT_OSRM_BASE_URL)
         return OsrmDistanceProvider(base_url=base_url)
     raise ValueError(f"Unknown distance provider: {name}")
 
 
 def _resolve_cost_mode(value: str) -> str:
-    if value not in VALID_COST_MODES:
+    if value not in COST_MODES:
         raise ValueError(
-            f"Invalid ROUTE_ENGINE_COST={value!r}. "
-            f"Expected one of {VALID_COST_MODES}."
+            f"Invalid {ENV_COST}={value!r}. "
+            f"Expected one of {COST_MODES}."
         )
     return value
 
@@ -44,17 +51,17 @@ def main(argv=None):
     )
     parser.add_argument(
         "--provider",
-        choices=("haversine", "osrm"),
-        default=os.environ.get("ROUTE_ENGINE_PROVIDER", "haversine"),
-        help="Distance matrix source (default from .env / ROUTE_ENGINE_PROVIDER). "
+        choices=PROVIDERS,
+        default=os.environ.get(ENV_PROVIDER, DEFAULT_PROVIDER),
+        help=f"Distance matrix source (default from .env / {ENV_PROVIDER}). "
         "Use osrm for road-network distances and ETAs.",
     )
     parser.add_argument(
         "--cost",
-        choices=VALID_COST_MODES,
+        choices=COST_MODES,
         default=None,
         help="OR-Tools cost matrix: distance or eta "
-        "(default from .env / ROUTE_ENGINE_COST). "
+        f"(default from .env / {ENV_COST}). "
         "Ignored when provider is haversine.",
     )
     args = parser.parse_args(argv)
@@ -62,7 +69,7 @@ def main(argv=None):
     cost_mode = _resolve_cost_mode(
         args.cost
         if args.cost is not None
-        else os.environ.get("ROUTE_ENGINE_COST", "distance")
+        else os.environ.get(ENV_COST, DEFAULT_COST_MODE)
     )
 
     waypoints = get_waypoints()

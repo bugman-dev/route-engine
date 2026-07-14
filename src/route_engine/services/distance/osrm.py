@@ -7,11 +7,17 @@ import urllib.error
 import urllib.request
 from typing import List, Optional
 
+from ...constants import (
+    DEFAULT_OSRM_BASE_URL,
+    DEFAULT_OSRM_PROFILE,
+    DEFAULT_OSRM_TIMEOUT_SECONDS,
+    OSRM_ANNOTATION_DISTANCE,
+    OSRM_ANNOTATION_DURATION,
+    OSRM_ANNOTATIONS,
+    OSRM_METRES_TO_KM,
+)
 from ...models.waypoint import Waypoint
 from .matrices import TravelMatrices
-
-# Public demo server — fine for learning; use your own OSRM in production.
-DEFAULT_OSRM_BASE_URL = "https://router.project-osrm.org"
 
 
 class OsrmDistanceProvider:
@@ -24,8 +30,8 @@ class OsrmDistanceProvider:
     def __init__(
         self,
         base_url: str = DEFAULT_OSRM_BASE_URL,
-        profile: str = "driving",
-        timeout_seconds: float = 30.0,
+        profile: str = DEFAULT_OSRM_PROFILE,
+        timeout_seconds: float = DEFAULT_OSRM_TIMEOUT_SECONDS,
     ):
         self.base_url = base_url.rstrip("/")
         self.profile = profile
@@ -41,7 +47,7 @@ class OsrmDistanceProvider:
         )
         url = (
             f"{self.base_url}/table/v1/{self.profile}/{coordinates}"
-            f"?annotations=distance,duration"
+            f"?annotations={OSRM_ANNOTATIONS}"
         )
 
         try:
@@ -65,13 +71,19 @@ class OsrmDistanceProvider:
         if distances_m is None or durations_s is None:
             raise RuntimeError(
                 "OSRM response missing 'distances' or 'durations'. "
-                "Request with annotations=distance,duration."
+                f"Request with annotations={OSRM_ANNOTATIONS}."
             )
 
         return TravelMatrices(
-            distance_km=self._to_int_matrix(distances_m, scale=0.001, label="distance"),
+            distance_km=self._to_int_matrix(
+                distances_m,
+                scale=OSRM_METRES_TO_KM,
+                label=OSRM_ANNOTATION_DISTANCE,
+            ),
             duration_seconds=self._to_int_matrix(
-                durations_s, scale=1.0, label="duration"
+                durations_s,
+                scale=1.0,
+                label=OSRM_ANNOTATION_DURATION,
             ),
         )
 

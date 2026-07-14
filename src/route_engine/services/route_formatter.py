@@ -1,6 +1,7 @@
 from typing import List, Optional
 
-from ..models.route import CostMode, Route
+from ..constants import COST_MODE_DISTANCE, DEFAULT_COST_MODE, CostMode
+from ..models.route import Route
 
 
 def _accumulate_along_path(path, matrix) -> List[int]:
@@ -20,7 +21,7 @@ def format_routes(
     routes,
     waypoints,
     vehicles,
-    cost_mode: CostMode = "distance",
+    cost_mode: CostMode = DEFAULT_COST_MODE,
     display_matrix=None,
 ) -> List[Route]:
     """
@@ -46,7 +47,7 @@ def format_routes(
         total_distance_km: Optional[int] = None
 
         if display_matrix is not None:
-            if cost_mode == "distance":
+            if cost_mode == COST_MODE_DISTANCE:
                 etas_seconds = _accumulate_along_path(route, display_matrix)
                 total_duration_seconds = etas_seconds[-1]
             else:

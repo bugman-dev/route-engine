@@ -1,10 +1,14 @@
 from ..validators.validator import validate_input_data
 from ..services.distance import HaversineDistanceProvider
-from ..models.route import CostMode
+from ..constants import (
+    COST_MODE_DISTANCE,
+    COST_MODE_ETA,
+    COST_MODES,
+    DEFAULT_COST_MODE,
+    CostMode,
+)
 from .route_optimizer import optimize_routes
 from ..services.route_formatter import format_routes
-
-VALID_COST_MODES = ("distance", "eta")
 
 
 def _resolve_cost(matrices, cost_mode: CostMode):
@@ -14,12 +18,12 @@ def _resolve_cost(matrices, cost_mode: CostMode):
     Haversine (no duration) always uses distance and has nothing else to show.
     """
     if matrices.duration_seconds is None:
-        return "distance", matrices.distance_km, None
+        return COST_MODE_DISTANCE, matrices.distance_km, None
 
-    if cost_mode == "distance":
-        return "distance", matrices.distance_km, matrices.duration_seconds
+    if cost_mode == COST_MODE_DISTANCE:
+        return COST_MODE_DISTANCE, matrices.distance_km, matrices.duration_seconds
 
-    return "eta", matrices.duration_seconds, matrices.distance_km
+    return COST_MODE_ETA, matrices.duration_seconds, matrices.distance_km
 
 
 def generate_routes(
@@ -27,7 +31,7 @@ def generate_routes(
     vehicles,
     depot,
     distance_provider=None,
-    cost_mode: CostMode = "distance",
+    cost_mode: CostMode = DEFAULT_COST_MODE,
 ):
     """
     Build capacitated routes for the given fleet and waypoints.
@@ -42,10 +46,10 @@ def generate_routes(
             Ignored when the provider has no duration matrix (Haversine) —
             distance is always used then.
     """
-    if cost_mode not in VALID_COST_MODES:
+    if cost_mode not in COST_MODES:
         raise ValueError(
             f"Invalid cost_mode={cost_mode!r}. "
-            f"Expected one of {VALID_COST_MODES}."
+            f"Expected one of {COST_MODES}."
         )
 
     validate_input_data(waypoints, vehicles, depot)

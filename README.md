@@ -129,6 +129,7 @@ metric when available).
 
 ```text
 src/route_engine/
+  constants.py      # shared strings (cost modes, providers, env keys, labels)
   engine/           # orchestration + OR-Tools solver
   models/           # Waypoint, Vehicle, Route
   services/

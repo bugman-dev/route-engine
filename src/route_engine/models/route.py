@@ -1,8 +1,8 @@
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
-CostMode = Literal["distance", "eta"]
+from route_engine.constants import COST_MODE_DISTANCE, CostMode
 
 
 class Route(BaseModel):
@@ -14,7 +14,7 @@ class Route(BaseModel):
     capacity: int
     stops: List[str]
     # Which matrix OR-Tools minimized for this solve.
-    cost_mode: CostMode = "distance"
+    cost_mode: CostMode = COST_MODE_DISTANCE
     # Populated when the non-cost metric is ETA (cost_mode=distance + OSRM).
     etas_seconds: Optional[List[int]] = None
     total_duration_seconds: Optional[int] = None

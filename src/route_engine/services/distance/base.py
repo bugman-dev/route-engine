@@ -1,15 +1,16 @@
 from typing import List, Protocol
 
 from ...models.waypoint import Waypoint
+from .matrices import TravelMatrices
 
 
 class DistanceProvider(Protocol):
     """
-    Builds a pairwise distance matrix for a list of waypoints.
+    Builds pairwise travel matrices for a list of waypoints.
 
-    matrix[i][j] is the cost of travelling from waypoints[i] to waypoints[j].
-    Implementations may use straight-line distance, road networks, etc.
+    Always includes distance. May also include duration (ETA) when the
+    underlying data source supports road travel times.
     """
 
-    def matrix(self, waypoints: List[Waypoint]) -> List[List[int]]:
+    def matrix(self, waypoints: List[Waypoint]) -> TravelMatrices:
         ...

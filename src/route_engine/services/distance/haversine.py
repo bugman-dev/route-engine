@@ -2,12 +2,13 @@ from typing import List
 
 from ...models.waypoint import Waypoint
 from ...utils.geo import haversine
+from .matrices import TravelMatrices
 
 
 class HaversineDistanceProvider:
-    """Straight-line distance in kilometres (rounded to int for OR-Tools)."""
+    """Straight-line distance in kilometres (no duration / ETA matrix)."""
 
-    def matrix(self, waypoints: List[Waypoint]) -> List[List[int]]:
+    def matrix(self, waypoints: List[Waypoint]) -> TravelMatrices:
         rows = []
         for origin in waypoints:
             row = [
@@ -22,4 +23,4 @@ class HaversineDistanceProvider:
                 for destination in waypoints
             ]
             rows.append(row)
-        return rows
+        return TravelMatrices(distance_km=rows, duration_seconds=None)

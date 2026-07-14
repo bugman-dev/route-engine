@@ -14,6 +14,8 @@ from route_engine.utils.display_routes import display_routes
 
 load_env()
 
+VALID_COST_MODES = ("distance", "eta")
+
 
 def _build_distance_provider(name: str):
     if name == "haversine":
@@ -27,6 +29,15 @@ def _build_distance_provider(name: str):
     raise ValueError(f"Unknown distance provider: {name}")
 
 
+def _resolve_cost_mode(value: str) -> str:
+    if value not in VALID_COST_MODES:
+        raise ValueError(
+            f"Invalid ROUTE_ENGINE_COST={value!r}. "
+            f"Expected one of {VALID_COST_MODES}."
+        )
+    return value
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Generate capacitated vehicle routes for the sample dataset.",
@@ -36,9 +47,23 @@ def main(argv=None):
         choices=("haversine", "osrm"),
         default=os.environ.get("ROUTE_ENGINE_PROVIDER", "haversine"),
         help="Distance matrix source (default from .env / ROUTE_ENGINE_PROVIDER). "
-        "Use osrm for road-network distances.",
+        "Use osrm for road-network distances and ETAs.",
+    )
+    parser.add_argument(
+        "--cost",
+        choices=VALID_COST_MODES,
+        default=None,
+        help="OR-Tools cost matrix: distance or eta "
+        "(default from .env / ROUTE_ENGINE_COST). "
+        "Ignored when provider is haversine.",
     )
     args = parser.parse_args(argv)
+
+    cost_mode = _resolve_cost_mode(
+        args.cost
+        if args.cost is not None
+        else os.environ.get("ROUTE_ENGINE_COST", "distance")
+    )
 
     waypoints = get_waypoints()
     vehicles = get_vehicles()
@@ -50,6 +75,7 @@ def main(argv=None):
         vehicles,
         depot,
         distance_provider=distance_provider,
+        cost_mode=cost_mode,
     )
     display_routes(routes)
     return 0

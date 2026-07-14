@@ -17,8 +17,8 @@ goes through JSON request/response payloads.
 - Distance providers:
   - **Haversine** — straight-line km only (works offline)
   - **OSRM** — road-network distance km + duration (ETA) seconds
-- Cost selection (`distance` or `eta`); the other metric is returned on each
-  route when using OSRM
+- Cost selection (`distance` or `eta`); with OSRM, each route includes both
+  distance and duration details regardless of which one was optimized
 
 ## Not yet implemented
 
@@ -116,32 +116,33 @@ curl -X POST http://127.0.0.1:8000/api/v1/routes/generate \
   }'
 ```
 
-### Example response shape
+### Example response shape (OSRM)
 
 ```json
 {
-  "provider": "haversine",
-  "cost_mode": "distance",
+  "provider": "osrm",
+  "cost_mode": "eta",
   "routes": [
     {
       "vehicle_id": "VH001",
       "vehicle_number": "KL01TS1001",
       "operator": "James",
       "capacity": 4,
-      "stops": ["Depot", "Waypoint 1", "Waypoint 3", "Depot"],
-      "cost_mode": "distance",
-      "etas_seconds": null,
-      "total_duration_seconds": null,
-      "leg_distances_km": null,
-      "total_distance_km": null
+      "stops": ["Depot", "Waypoint 12", "Waypoint 2", "Depot"],
+      "cost_mode": "eta",
+      "etas_seconds": [0, 462, 1132, 1699],
+      "total_duration_seconds": 1699,
+      "leg_distances_km": [5, 2, 8],
+      "total_distance_km": 15
     }
   ]
 }
 ```
 
-With `provider: "osrm"` and `cost_mode: "distance"`, routes include `etas_seconds`
-and `total_duration_seconds`. With `cost_mode: "eta"`, they include
-`leg_distances_km` and `total_distance_km`.
+With OSRM, routes always include both duration (`etas_seconds`,
+`total_duration_seconds`) and distance (`leg_distances_km`,
+`total_distance_km`). `cost_mode` only chooses what OR-Tools minimizes.
+With Haversine, only distance fields are populated (no road ETAs).
 
 ## Core library (in-process)
 

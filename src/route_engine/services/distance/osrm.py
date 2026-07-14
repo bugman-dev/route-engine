@@ -1,39 +1,45 @@
-"""OSRM road-network distance matrix provider."""
+"""OSRM road-network distance and duration matrices."""
 
 from __future__ import annotations
 
 import json
 import urllib.error
 import urllib.request
-from typing import List
+from typing import List, Optional
 
+from ...constants import (
+    DEFAULT_OSRM_BASE_URL,
+    DEFAULT_OSRM_PROFILE,
+    DEFAULT_OSRM_TIMEOUT_SECONDS,
+    OSRM_ANNOTATION_DISTANCE,
+    OSRM_ANNOTATION_DURATION,
+    OSRM_ANNOTATIONS,
+    OSRM_METRES_TO_KM,
+)
 from ...models.waypoint import Waypoint
-
-# Public demo server — fine for learning; use your own OSRM in production.
-DEFAULT_OSRM_BASE_URL = "https://router.project-osrm.org"
+from .matrices import TravelMatrices
 
 
 class OsrmDistanceProvider:
     """
-    Road-network distances via OSRM's Table service.
+    Road-network travel costs via OSRM's Table service.
 
-    Calls GET /table/v1/{profile}/{lon},{lat};...?annotations=distance
-    and returns a km matrix (metres ÷ 1000, rounded) so units match Haversine.
+    Requests both distance (metres → km) and duration (seconds) in one call.
     """
 
     def __init__(
         self,
         base_url: str = DEFAULT_OSRM_BASE_URL,
-        profile: str = "driving",
-        timeout_seconds: float = 30.0,
+        profile: str = DEFAULT_OSRM_PROFILE,
+        timeout_seconds: float = DEFAULT_OSRM_TIMEOUT_SECONDS,
     ):
         self.base_url = base_url.rstrip("/")
         self.profile = profile
         self.timeout_seconds = timeout_seconds
 
-    def matrix(self, waypoints: List[Waypoint]) -> List[List[int]]:
+    def matrix(self, waypoints: List[Waypoint]) -> TravelMatrices:
         if not waypoints:
-            return []
+            return TravelMatrices(distance_km=[], duration_seconds=[])
 
         # OSRM expects longitude,latitude (not lat,lon).
         coordinates = ";".join(
@@ -41,7 +47,7 @@ class OsrmDistanceProvider:
         )
         url = (
             f"{self.base_url}/table/v1/{self.profile}/{coordinates}"
-            f"?annotations=distance"
+            f"?annotations={OSRM_ANNOTATIONS}"
         )
 
         try:
@@ -61,25 +67,41 @@ class OsrmDistanceProvider:
             raise RuntimeError(f"OSRM returned an error: {payload}")
 
         distances_m = payload.get("distances")
-        if distances_m is None:
+        durations_s = payload.get("durations")
+        if distances_m is None or durations_s is None:
             raise RuntimeError(
-                "OSRM response missing 'distances'. "
-                "Request with annotations=distance."
+                "OSRM response missing 'distances' or 'durations'. "
+                f"Request with annotations={OSRM_ANNOTATIONS}."
             )
 
-        return self._to_km_matrix(distances_m)
+        return TravelMatrices(
+            distance_km=self._to_int_matrix(
+                distances_m,
+                scale=OSRM_METRES_TO_KM,
+                label=OSRM_ANNOTATION_DISTANCE,
+            ),
+            duration_seconds=self._to_int_matrix(
+                durations_s,
+                scale=1.0,
+                label=OSRM_ANNOTATION_DURATION,
+            ),
+        )
 
     @staticmethod
-    def _to_km_matrix(distances_m: List[List[float | None]]) -> List[List[int]]:
+    def _to_int_matrix(
+        values: List[List[Optional[float]]],
+        scale: float,
+        label: str,
+    ) -> List[List[int]]:
         matrix: List[List[int]] = []
-        for i, row in enumerate(distances_m):
+        for i, row in enumerate(values):
             converted: List[int] = []
-            for j, metres in enumerate(row):
-                if metres is None:
+            for j, cell in enumerate(row):
+                if cell is None:
                     raise RuntimeError(
-                        f"OSRM found no road route between waypoints "
+                        f"OSRM found no road {label} between waypoints "
                         f"[{i}] and [{j}]."
                     )
-                converted.append(round(metres / 1000))
+                converted.append(round(cell * scale))
             matrix.append(converted)
         return matrix

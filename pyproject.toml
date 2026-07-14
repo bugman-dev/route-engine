@@ -12,10 +12,12 @@ dependencies = [
     "ortools>=9.11",
     "pydantic>=2.10",
     "python-dotenv>=1.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
 ]
 
 [project.scripts]
-route-engine = "route_engine.cli:main"
+route-engine-api = "route_engine.api.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

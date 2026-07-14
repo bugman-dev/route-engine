@@ -24,6 +24,8 @@ stays outside the core — see `examples/` for a sample dataset.
 - HTTP API (FastAPI)
 - Wall-clock departure / arrival clocks
 - External / persistent input sources
+- Self-hosted / private OSRM for production (the public
+  `router.project-osrm.org` demo is fine for development only)
 
 ## Stack (today)
 
@@ -144,4 +146,5 @@ src/route_engine/
 
 1. FastAPI service wrapping `generate_routes`
 2. Wall-clock ETAs from a configured departure time
-3. Richer constraints (time windows, skills, etc.) as needed
+3. Document and support a local/private OSRM setup for production use
+4. Richer constraints (time windows, skills, etc.) as needed

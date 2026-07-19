@@ -19,13 +19,13 @@ goes through JSON request/response payloads.
   - **OSRM** — road-network distance km + duration (ETA) seconds
 - Cost selection (`distance` or `eta`); with OSRM, each route includes both
   distance and duration details regardless of which one was optimized
+- Docker Compose stack: route-engine + private OSRM on one network
 
 ## Not yet implemented
 
 - Auth / rate limiting
 - External / persistent input sources
-- Self-hosted / private OSRM for production (the public
-  `router.project-osrm.org` demo is fine for development only)
+- Automated / scheduled OSM map refresh for OSRM
 
 ## Stack (today)
 
@@ -33,9 +33,9 @@ goes through JSON request/response payloads.
 - FastAPI + Uvicorn
 - Google OR-Tools
 - Pydantic
-- OSRM (optional; HTTP Table service)
+- OSRM (optional; HTTP Table service; self-host via Docker)
 
-## Setup
+## Setup (local, without Docker)
 
 ```bash
 python -m venv .venv
@@ -64,16 +64,18 @@ cp .env.sample .env
 | `ROUTE_ENGINE_PROVIDER` | `haversine` \| `osrm` | Default travel matrix source |
 | `ROUTE_ENGINE_COST` | `distance` \| `eta` | Default matrix OR-Tools minimizes |
 | `OSRM_BASE_URL` | URL | OSRM server (when provider is `osrm`) |
+| `OSRM_MAP` | basename | Prepared map name under `osrm-data/` (Compose) |
 
 Request body may override `provider` and `cost_mode`. With **haversine**, only
 distance exists — `cost_mode=eta` is ignored.
 
 `.env` is gitignored; `.env.sample` is the committed template.
+Config reaches containers via Compose `env_file` (nothing secret is baked into the image).
 
-## Run the API
+## Run the API locally
 
 ```bash
-uvicorn route_engine.api.app:app --reload
+python -m uvicorn route_engine.api.app:app --reload
 ```
 
 Or:
@@ -85,6 +87,82 @@ route-engine-api
 - Docs: http://127.0.0.1:8000/docs
 - Health: `GET /health`
 - Generate: `POST /api/v1/routes/generate`
+
+## Run with Docker
+
+Requires Docker Desktop (Linux containers).
+
+```text
+Client → route-engine (:8000) → osrm (:5000, private on compose network)
+```
+
+1. Copy env and set the map basename:
+
+```bash
+# Windows
+copy .env.sample .env
+
+# macOS / Linux
+cp .env.sample .env
+```
+
+Set `OSRM_MAP` to the basename of your extract (no extension), e.g. `kerala-latest`.
+
+2. Download a regional OpenStreetMap extract into `osrm-data/`
+   (e.g. from [Geofabrik](https://download.geofabrik.de/)), such as
+   `osrm-data/kerala-latest.osm.pbf`. Prefer a small region that covers your
+   service area — full-country extracts need much more RAM and time.
+
+3. Prepare the OSRM graph once (MLD pipeline).
+
+macOS / Linux:
+
+```bash
+chmod +x scripts/prepare_osrm.sh
+./scripts/prepare_osrm.sh kerala-latest
+```
+
+Windows PowerShell (from the project root):
+
+```powershell
+$MAP = "kerala-latest"
+$IMAGE = "ghcr.io/project-osrm/osrm-backend:v5.27.1"
+$data = (Resolve-Path .\osrm-data).Path
+
+docker run --rm -t -v "${data}:/data" $IMAGE `
+  osrm-extract -p /opt/car.lua "/data/${MAP}.osm.pbf"
+
+docker run --rm -t -v "${data}:/data" $IMAGE `
+  osrm-partition "/data/${MAP}.osrm"
+
+docker run --rm -t -v "${data}:/data" $IMAGE `
+  osrm-customize "/data/${MAP}.osrm"
+```
+
+4. Point the app at OSRM and start the stack:
+
+```env
+ROUTE_ENGINE_PROVIDER=osrm
+OSRM_MAP=kerala-latest
+```
+
+(`OSRM_BASE_URL` is overridden to `http://osrm:5000` by Compose for the app.)
+
+```bash
+docker compose build
+docker compose up
+```
+
+API docs: http://localhost:8000/docs
+
+Notes:
+
+- Keep OSRM private — only publish the FastAPI port (`8000`) in production.
+- OSRM travel times are profile-based estimates (from `car.lua`), not live traffic.
+- Until map data is prepared, you can leave `ROUTE_ENGINE_PROVIDER=haversine`
+  and still start the app (OSRM will fail only when provider is `osrm`).
+- If `docker pull ghcr.io/project-osrm/osrm-backend:...` fails with “denied”,
+  try `docker logout ghcr.io` and pull again.
 
 ### Example request
 
@@ -172,9 +250,13 @@ src/route_engine/
     provider_factory.py
   validators/
   utils/
+Dockerfile
+docker-compose.yml
+scripts/prepare_osrm.sh
+osrm-data/          # map extracts + prepared graph (gitignored contents)
 ```
 
 ## Roadmap
 
-1. Document and support a local/private OSRM setup for production use
-2. Richer constraints (time windows, skills, etc.) as needed
+1. Richer constraints (time windows, skills, etc.) as needed
+2. Automated OSM refresh / map update pipeline for OSRM

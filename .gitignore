@@ -29,3 +29,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# OSRM map extracts and prepared graph (large; keep only the folder README)
+osrm-data/*
+!osrm-data/README.md
+*.osm.pbf
+*.osrm
+*.osrm.*

@@ -49,6 +49,13 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+For tests:
+
+```bash
+pip install -e ".[test]"
+pytest
+```
+
 Copy the sample env file and edit if needed:
 
 ```bash
@@ -294,6 +301,7 @@ Dockerfile
 docker-compose.yml
 scripts/prepare_osrm.sh
 osrm-data/          # map extracts + prepared graph (gitignored contents)
+tests/              # pytest (engine, API, mocked OSRM)
 ```
 
 ## Roadmap

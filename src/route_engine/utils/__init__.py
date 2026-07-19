@@ -1,1 +1,1 @@
-"""Helpers for demos and local runs."""
+"""Shared helpers (geo utilities)."""

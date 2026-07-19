@@ -18,6 +18,7 @@ PROVIDER_HAVERSINE = "haversine"
 PROVIDER_OSRM = "osrm"
 PROVIDERS = (PROVIDER_HAVERSINE, PROVIDER_OSRM)
 DEFAULT_PROVIDER = PROVIDER_HAVERSINE
+ProviderName = Literal["haversine", "osrm"]
 
 # ---------------------------------------------------------------------------
 # Environment variable names
@@ -39,13 +40,8 @@ OSRM_ANNOTATIONS = f"{OSRM_ANNOTATION_DISTANCE},{OSRM_ANNOTATION_DURATION}"
 OSRM_METRES_TO_KM = 0.001
 
 # ---------------------------------------------------------------------------
-# CLI / display labels
+# HTTP API
 # ---------------------------------------------------------------------------
-LABEL_VEHICLE = "Vehicle"
-LABEL_OPERATOR = "Operator"
-LABEL_COST = "Cost"
-LABEL_ETA = "ETA"
-LABEL_TOTAL_DURATION = "Total duration"
-LABEL_LEGS = "Legs"
-LABEL_TOTAL_DISTANCE = "Total distance"
-LABEL_STOP_SEPARATOR = " -> "
+API_PREFIX = "/api/v1"
+API_ROUTES_GENERATE_PATH = "/routes/generate"
+API_HEALTH_PATH = "/health"

@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from ..constants import COST_MODE_DISTANCE, DEFAULT_COST_MODE, CostMode
+from ..constants import DEFAULT_COST_MODE, CostMode
 from ..models.route import Route
 
 
@@ -22,14 +22,14 @@ def format_routes(
     waypoints,
     vehicles,
     cost_mode: CostMode = DEFAULT_COST_MODE,
-    display_matrix=None,
+    distance_km=None,
+    duration_seconds=None,
 ) -> List[Route]:
     """
     Map solver node indices to vehicle metadata and stop names.
 
-    When `display_matrix` is set, annotate each route with the non-cost metric:
-    - cost_mode=distance → display is duration (ETA)
-    - cost_mode=eta → display is distance (km)
+    When travel matrices are available, annotate each route with both
+    distance and duration (OSRM). Haversine has distance only.
     """
     formatted_routes = []
 
@@ -46,13 +46,13 @@ def format_routes(
         leg_distances_km: Optional[List[int]] = None
         total_distance_km: Optional[int] = None
 
-        if display_matrix is not None:
-            if cost_mode == COST_MODE_DISTANCE:
-                etas_seconds = _accumulate_along_path(route, display_matrix)
-                total_duration_seconds = etas_seconds[-1]
-            else:
-                leg_distances_km = _leg_values(route, display_matrix)
-                total_distance_km = sum(leg_distances_km)
+        if distance_km is not None:
+            leg_distances_km = _leg_values(route, distance_km)
+            total_distance_km = sum(leg_distances_km)
+
+        if duration_seconds is not None:
+            etas_seconds = _accumulate_along_path(route, duration_seconds)
+            total_duration_seconds = etas_seconds[-1]
 
         formatted_routes.append(
             Route(

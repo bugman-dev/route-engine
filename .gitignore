@@ -29,3 +29,16 @@ Thumbs.db
 
 # Logs
 *.log
+
+# ---------------------------------------------------------------------------
+# OSRM map extracts and prepared graph (large; never commit)
+# Keep only osrm-data/README.md in the repo.
+# ---------------------------------------------------------------------------
+osrm-data/*
+!osrm-data/README.md
+
+# Catch OSRM / OSM artifacts anywhere else in the tree
+*.osm.pbf
+*.osm
+*.osrm
+*.osrm.*

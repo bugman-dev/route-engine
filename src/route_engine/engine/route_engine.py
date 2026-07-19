@@ -13,17 +13,17 @@ from ..services.route_formatter import format_routes
 
 def _resolve_cost(matrices, cost_mode: CostMode):
     """
-    Pick the OR-Tools cost matrix and the matrix used for display.
+    Pick which matrix OR-Tools minimizes.
 
-    Haversine (no duration) always uses distance and has nothing else to show.
+    Haversine (no duration) always uses distance.
     """
     if matrices.duration_seconds is None:
-        return COST_MODE_DISTANCE, matrices.distance_km, None
+        return COST_MODE_DISTANCE, matrices.distance_km
 
     if cost_mode == COST_MODE_DISTANCE:
-        return COST_MODE_DISTANCE, matrices.distance_km, matrices.duration_seconds
+        return COST_MODE_DISTANCE, matrices.distance_km
 
-    return COST_MODE_ETA, matrices.duration_seconds, matrices.distance_km
+    return COST_MODE_ETA, matrices.duration_seconds
 
 
 def generate_routes(
@@ -58,12 +58,13 @@ def generate_routes(
         distance_provider = HaversineDistanceProvider()
 
     matrices = distance_provider.matrix(waypoints)
-    resolved_mode, cost_matrix, display_matrix = _resolve_cost(matrices, cost_mode)
+    resolved_mode, cost_matrix = _resolve_cost(matrices, cost_mode)
     optimized_routes = optimize_routes(cost_matrix, vehicles, depot)
     return format_routes(
         optimized_routes,
         waypoints,
         vehicles,
         cost_mode=resolved_mode,
-        display_matrix=display_matrix,
+        distance_km=matrices.distance_km,
+        duration_seconds=matrices.duration_seconds,
     )

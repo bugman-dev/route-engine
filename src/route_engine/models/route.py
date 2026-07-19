@@ -15,9 +15,9 @@ class Route(BaseModel):
     stops: List[str]
     # Which matrix OR-Tools minimized for this solve.
     cost_mode: CostMode = COST_MODE_DISTANCE
-    # Populated when the non-cost metric is ETA (cost_mode=distance + OSRM).
+    # Cumulative arrival offsets from departure (OSRM); None for Haversine.
     etas_seconds: Optional[List[int]] = None
     total_duration_seconds: Optional[int] = None
-    # Populated when the non-cost metric is distance (cost_mode=eta + OSRM).
+    # Per-leg and total road/straight-line distance along the route.
     leg_distances_km: Optional[List[int]] = None
     total_distance_km: Optional[int] = None

@@ -96,7 +96,7 @@ Requires Docker Desktop (Linux containers).
 Client → route-engine (:8000) → osrm (:5000, private on compose network)
 ```
 
-1. Copy env and set the map basename:
+### 1. Env file
 
 ```bash
 # Windows
@@ -106,26 +106,38 @@ copy .env.sample .env
 cp .env.sample .env
 ```
 
-Set `OSRM_MAP` to the basename of your extract (no extension), e.g. `kerala-latest`.
+### 2. OSRM map data (download + prepare)
 
-2. Download a regional OpenStreetMap extract into `osrm-data/`
-   (e.g. from [Geofabrik](https://download.geofabrik.de/)), such as
-   `osrm-data/kerala-latest.osm.pbf`. Prefer a small region that covers your
-   service area — full-country extracts need much more RAM and time.
+Map extracts and prepared graphs live under `osrm-data/`. They are **gitignored**
+(only `osrm-data/README.md` is committed). Prefer a small region that covers your
+service area — large extracts need much more RAM and time.
 
-3. Prepare the OSRM graph once (MLD pipeline).
+#### Download
+
+1. Open [Geofabrik downloads](https://download.geofabrik.de/).
+2. Pick a region (e.g. Asia → India → a state, or a custom zone extract).
+3. Download the `.osm.pbf` file into `osrm-data/`.
+
+Example (basename without extension is what you use everywhere else):
+
+```text
+osrm-data/southern-zone-260718.osm.pbf
+→ OSRM_MAP=southern-zone-260718
+```
+
+#### Prepare the graph (one-time per map)
 
 macOS / Linux:
 
 ```bash
 chmod +x scripts/prepare_osrm.sh
-./scripts/prepare_osrm.sh kerala-latest
+./scripts/prepare_osrm.sh southern-zone-260718
 ```
 
 Windows PowerShell (from the project root):
 
 ```powershell
-$MAP = "kerala-latest"
+$MAP = "southern-zone-260718"   # must match the .osm.pbf basename
 $IMAGE = "ghcr.io/project-osrm/osrm-backend:v5.27.1"
 $data = (Resolve-Path .\osrm-data).Path
 
@@ -139,14 +151,42 @@ docker run --rm -t -v "${data}:/data" $IMAGE `
   osrm-customize "/data/${MAP}.osrm"
 ```
 
-4. Point the app at OSRM and start the stack:
+After this, `osrm-data/` will contain many `<map>.osrm.*` files. That is expected.
+
+#### Point the app at the map
+
+In `.env`:
 
 ```env
 ROUTE_ENGINE_PROVIDER=osrm
-OSRM_MAP=kerala-latest
+OSRM_MAP=southern-zone-260718
 ```
 
 (`OSRM_BASE_URL` is overridden to `http://osrm:5000` by Compose for the app.)
+
+#### Replace / remove existing map data
+
+Before installing a **new** region (or a newer extract of the same region),
+stop the stack and clear the old files so they are not mixed:
+
+```powershell
+# From the project root
+docker compose down
+
+# Windows — remove everything except README.md
+Get-ChildItem .\osrm-data -Exclude README.md | Remove-Item -Recurse -Force
+```
+
+```bash
+# macOS / Linux
+docker compose down
+find osrm-data -mindepth 1 ! -name 'README.md' -exec rm -rf {} +
+```
+
+Then download the new `.osm.pbf`, run prepare again, update `OSRM_MAP` in `.env`,
+and start Compose.
+
+### 3. Start the stack
 
 ```bash
 docker compose build

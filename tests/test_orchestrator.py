@@ -232,6 +232,18 @@ def test_api_waypoints_and_generate_with_mock_engine(db_session, monkeypatch):
     assert listed.status_code == 200
     assert len(listed.json()) == 2
 
+    total_waypoints = client.get("/api/v1/waypoints/total")
+    assert total_waypoints.status_code == 200
+    assert total_waypoints.json() == {"total_waypoints": 2, "active_only": True}
+
+    total_demand = client.get("/api/v1/waypoints/demand/total")
+    assert total_demand.status_code == 200
+    assert total_demand.json() == {"total_demand": 1, "active_only": True}
+
+    total_capacity = client.get("/api/v1/vehicles/capacity/total")
+    assert total_capacity.status_code == 200
+    assert total_capacity.json() == {"total_capacity": 4, "active_only": True}
+
     generated = client.post("/api/v1/routes/generate", json={"regenerate": False})
     assert generated.status_code == 200
     body = generated.json()

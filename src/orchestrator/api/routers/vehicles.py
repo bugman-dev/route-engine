@@ -4,7 +4,12 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from orchestrator.api.schemas import VehicleCreate, VehicleOut, VehicleUpdate
+from orchestrator.api.schemas import (
+    TotalCapacityOut,
+    VehicleCreate,
+    VehicleOut,
+    VehicleUpdate,
+)
 from orchestrator.db import get_db
 from orchestrator.db.models import VehicleRow
 from orchestrator.db.repositories import VehicleRepository
@@ -45,6 +50,16 @@ def get_vehicles(
     db: Session = Depends(get_db),
 ):
     return list(VehicleRepository(db).list(active_only=active_only))
+
+
+@router.get("/capacity/total", response_model=TotalCapacityOut)
+def get_total_capacity(
+    active_only: bool = Query(True),
+    db: Session = Depends(get_db),
+):
+    """Return the sum of vehicle capacity (active by default)."""
+    total = VehicleRepository(db).total_capacity(active_only=active_only)
+    return TotalCapacityOut(total_capacity=total, active_only=active_only)
 
 
 @router.patch("/{vehicle_id}", response_model=VehicleOut)

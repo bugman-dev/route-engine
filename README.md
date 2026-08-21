@@ -87,9 +87,12 @@ Base URL: `http://localhost:8080`
 | `GET` | `/health` | Health + DB ping |
 | `POST` | `/api/v1/waypoints` | Add waypoints (JSON array) |
 | `GET` | `/api/v1/waypoints?active_only=` | List waypoints |
+| `GET` | `/api/v1/waypoints/total?active_only=` | Total waypoint count (default active) |
+| `GET` | `/api/v1/waypoints/demand/total?active_only=` | Sum of waypoint demand (default active) |
 | `PATCH` | `/api/v1/waypoints/{id}` | Update (incl. `is_active`, `is_depot`) |
 | `POST` | `/api/v1/vehicles` | Add vehicles (JSON array) |
 | `GET` | `/api/v1/vehicles?active_only=` | List vehicles |
+| `GET` | `/api/v1/vehicles/capacity/total?active_only=` | Sum of vehicle capacity (default active) |
 | `PATCH` | `/api/v1/vehicles/{id}` | Update (incl. `is_active`) |
 | `POST` | `/api/v1/routes/generate` | Generate or return today's cached routes |
 | `GET` | `/api/v1/routes` | Latest route for **today** (IST) |

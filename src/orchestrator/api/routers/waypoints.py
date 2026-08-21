@@ -4,7 +4,13 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from orchestrator.api.schemas import WaypointCreate, WaypointOut, WaypointUpdate
+from orchestrator.api.schemas import (
+    TotalDemandOut,
+    TotalWaypointsOut,
+    WaypointCreate,
+    WaypointOut,
+    WaypointUpdate,
+)
 from orchestrator.db import get_db
 from orchestrator.db.models import WaypointRow
 from orchestrator.db.repositories import WaypointRepository
@@ -47,6 +53,26 @@ def get_waypoints(
     db: Session = Depends(get_db),
 ):
     return list(WaypointRepository(db).list(active_only=active_only))
+
+
+@router.get("/total", response_model=TotalWaypointsOut)
+def get_total_waypoints(
+    active_only: bool = Query(True),
+    db: Session = Depends(get_db),
+):
+    """Return the count of waypoints (active by default)."""
+    total = WaypointRepository(db).count(active_only=active_only)
+    return TotalWaypointsOut(total_waypoints=total, active_only=active_only)
+
+
+@router.get("/demand/total", response_model=TotalDemandOut)
+def get_total_demand(
+    active_only: bool = Query(True),
+    db: Session = Depends(get_db),
+):
+    """Return the sum of waypoint demand (active by default)."""
+    total = WaypointRepository(db).total_demand(active_only=active_only)
+    return TotalDemandOut(total_demand=total, active_only=active_only)
 
 
 @router.patch("/{waypoint_id}", response_model=WaypointOut)

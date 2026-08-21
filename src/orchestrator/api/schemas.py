@@ -72,6 +72,21 @@ class VehicleOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TotalWaypointsOut(BaseModel):
+    total_waypoints: int
+    active_only: bool
+
+
+class TotalDemandOut(BaseModel):
+    total_demand: int
+    active_only: bool
+
+
+class TotalCapacityOut(BaseModel):
+    total_capacity: int
+    active_only: bool
+
+
 class GenerateRoutesBody(BaseModel):
     provider: Optional[str] = None
     cost_mode: Optional[str] = None

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from orchestrator.db.models import RouteGenerationRow, VehicleRow, WaypointRow
@@ -36,6 +36,18 @@ class WaypointRepository:
         if active_only:
             stmt = stmt.where(WaypointRow.is_active.is_(True))
         return self.db.scalars(stmt).all()
+
+    def count(self, active_only: bool = True) -> int:
+        stmt = select(func.count()).select_from(WaypointRow)
+        if active_only:
+            stmt = stmt.where(WaypointRow.is_active.is_(True))
+        return int(self.db.scalar(stmt) or 0)
+
+    def total_demand(self, active_only: bool = True) -> int:
+        stmt = select(func.coalesce(func.sum(WaypointRow.demand), 0))
+        if active_only:
+            stmt = stmt.where(WaypointRow.is_active.is_(True))
+        return int(self.db.scalar(stmt) or 0)
 
     def update(self, row: WaypointRow) -> WaypointRow:
         self.db.add(row)
@@ -69,6 +81,12 @@ class VehicleRepository:
         if active_only:
             stmt = stmt.where(VehicleRow.is_active.is_(True))
         return self.db.scalars(stmt).all()
+
+    def total_capacity(self, active_only: bool = True) -> int:
+        stmt = select(func.coalesce(func.sum(VehicleRow.capacity), 0))
+        if active_only:
+            stmt = stmt.where(VehicleRow.is_active.is_(True))
+        return int(self.db.scalar(stmt) or 0)
 
     def update(self, row: VehicleRow) -> VehicleRow:
         self.db.add(row)

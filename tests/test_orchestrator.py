@@ -240,6 +240,10 @@ def test_api_waypoints_and_generate_with_mock_engine(db_session, monkeypatch):
     assert total_demand.status_code == 200
     assert total_demand.json() == {"total_demand": 1, "active_only": True}
 
+    total_vehicles = client.get("/api/v1/vehicles/total")
+    assert total_vehicles.status_code == 200
+    assert total_vehicles.json() == {"total_vehicles": 1, "active_only": True}
+
     total_capacity = client.get("/api/v1/vehicles/capacity/total")
     assert total_capacity.status_code == 200
     assert total_capacity.json() == {"total_capacity": 4, "active_only": True}

@@ -41,7 +41,7 @@ Overview and "ready to generate?" status.
 **Shows:**
 
 - Service date (IST, from client clock or first route response)
-- Counts: active waypoints (`GET /api/v1/waypoints/total`), depot configured?
+- Counts: active waypoints (`GET /api/v1/waypoints/total`), active vehicles (`GET /api/v1/vehicles/total`), depot configured?
 - Fleet capacity vs total demand (`GET /api/v1/vehicles/capacity/total`, `GET /api/v1/waypoints/demand/total`)
 - Today's route status: not generated / cached / last generated at
 - System health (`GET /health`)
@@ -247,6 +247,7 @@ Store UI defaults in localStorage:
 | Create waypoints | POST | `/api/v1/waypoints` (array) |
 | Update waypoint | PATCH | `/api/v1/waypoints/{id}` |
 | List vehicles | GET | `/api/v1/vehicles?active_only=` |
+| Total vehicles | GET | `/api/v1/vehicles/total?active_only=` |
 | Total capacity | GET | `/api/v1/vehicles/capacity/total?active_only=` |
 | Create vehicles | POST | `/api/v1/vehicles` (array) |
 | Update vehicle | PATCH | `/api/v1/vehicles/{id}` |

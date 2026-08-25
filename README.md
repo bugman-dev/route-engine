@@ -92,6 +92,7 @@ Base URL: `http://localhost:8080`
 | `PATCH` | `/api/v1/waypoints/{id}` | Update (incl. `is_active`, `is_depot`) |
 | `POST` | `/api/v1/vehicles` | Add vehicles (JSON array) |
 | `GET` | `/api/v1/vehicles?active_only=` | List vehicles |
+| `GET` | `/api/v1/vehicles/total?active_only=` | Total vehicle count (default active) |
 | `GET` | `/api/v1/vehicles/capacity/total?active_only=` | Sum of vehicle capacity (default active) |
 | `PATCH` | `/api/v1/vehicles/{id}` | Update (incl. `is_active`) |
 | `POST` | `/api/v1/routes/generate` | Generate or return today's cached routes |

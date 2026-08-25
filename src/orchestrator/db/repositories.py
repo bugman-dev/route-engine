@@ -82,6 +82,12 @@ class VehicleRepository:
             stmt = stmt.where(VehicleRow.is_active.is_(True))
         return self.db.scalars(stmt).all()
 
+    def count(self, active_only: bool = True) -> int:
+        stmt = select(func.count()).select_from(VehicleRow)
+        if active_only:
+            stmt = stmt.where(VehicleRow.is_active.is_(True))
+        return int(self.db.scalar(stmt) or 0)
+
     def total_capacity(self, active_only: bool = True) -> int:
         stmt = select(func.coalesce(func.sum(VehicleRow.capacity), 0))
         if active_only:

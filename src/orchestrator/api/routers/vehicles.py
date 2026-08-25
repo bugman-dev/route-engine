@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from orchestrator.api.schemas import (
     TotalCapacityOut,
+    TotalVehiclesOut,
     VehicleCreate,
     VehicleOut,
     VehicleUpdate,
@@ -50,6 +51,16 @@ def get_vehicles(
     db: Session = Depends(get_db),
 ):
     return list(VehicleRepository(db).list(active_only=active_only))
+
+
+@router.get("/total", response_model=TotalVehiclesOut)
+def get_total_vehicles(
+    active_only: bool = Query(True),
+    db: Session = Depends(get_db),
+):
+    """Return the count of vehicles (active by default)."""
+    total = VehicleRepository(db).count(active_only=active_only)
+    return TotalVehiclesOut(total_vehicles=total, active_only=active_only)
 
 
 @router.get("/capacity/total", response_model=TotalCapacityOut)

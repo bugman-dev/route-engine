@@ -82,6 +82,11 @@ class TotalDemandOut(BaseModel):
     active_only: bool
 
 
+class TotalVehiclesOut(BaseModel):
+    total_vehicles: int
+    active_only: bool
+
+
 class TotalCapacityOut(BaseModel):
     total_capacity: int
     active_only: bool

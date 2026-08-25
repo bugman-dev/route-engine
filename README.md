@@ -14,6 +14,9 @@ network.
 
 - Orchestrator HTTP API + MySQL persistence
 - Same-day route cache (IST) with optional `regenerate: true`
+- Fleet totals: waypoint count, demand sum, vehicle count, capacity sum
+- `GET /api/v1/routes` returns the **latest** generation (any date); use
+  `GET /api/v1/routes/{date}` for a specific day (including today)
 - Capacitated vehicle routing via internal route-engine
 - Distance providers: Haversine (offline) and OSRM (road network)
 - Docker Compose: orchestrator + MySQL + route-engine + OSRM
@@ -96,8 +99,8 @@ Base URL: `http://localhost:8080`
 | `GET` | `/api/v1/vehicles/capacity/total?active_only=` | Sum of vehicle capacity (default active) |
 | `PATCH` | `/api/v1/vehicles/{id}` | Update (incl. `is_active`) |
 | `POST` | `/api/v1/routes/generate` | Generate or return today's cached routes |
-| `GET` | `/api/v1/routes` | Latest route for **today** (IST) |
-| `GET` | `/api/v1/routes/{YYYY-MM-DD}` | Latest route for a date |
+| `GET` | `/api/v1/routes` | Latest generated route set (any date) |
+| `GET` | `/api/v1/routes/{YYYY-MM-DD}` | Latest route for a date (use today for today's) |
 
 Docs: http://localhost:8080/docs
 
@@ -116,6 +119,29 @@ Docs: http://localhost:8080/docs
 - If a generation already exists for today and `regenerate` is false, returns it with `cached: true`.
 - If `regenerate` is true, calls the engine again and stores a new row.
 
+### Totals (dashboard metrics)
+
+All totals default to **active** rows only (`active_only=true`). Pass
+`?active_only=false` to include inactive rows.
+
+| Endpoint | Response |
+|----------|----------|
+| `GET /api/v1/waypoints/total` | `{"total_waypoints": 15, "active_only": true}` |
+| `GET /api/v1/waypoints/demand/total` | `{"total_demand": 14, "active_only": true}` |
+| `GET /api/v1/vehicles/total` | `{"total_vehicles": 4, "active_only": true}` |
+| `GET /api/v1/vehicles/capacity/total` | `{"total_capacity": 14, "active_only": true}` |
+
+### Fetching routes
+
+| Endpoint | Behavior |
+|----------|----------|
+| `GET /api/v1/routes` | Most recently generated route set (by `generated_at`), **any** service date |
+| `GET /api/v1/routes/{YYYY-MM-DD}` | Latest generation for that calendar date (IST). Pass today's date for today's plan |
+
+Both return the same shape as generate (`cached`, `service_date`, `generated_at`,
+`was_regenerated`, `provider`, `cost_mode`, `routes`).  
+`404` if nothing has been generated yet / nothing for that date.
+
 ### Example flow
 
 ```bash
@@ -132,10 +158,22 @@ curl -X POST http://localhost:8080/api/v1/vehicles \
   -H "Content-Type: application/json" \
   -d '[{"number":"KA01","operator":"Alex","capacity":4}]'
 
+# Dashboard totals
+curl http://localhost:8080/api/v1/waypoints/total
+curl http://localhost:8080/api/v1/waypoints/demand/total
+curl http://localhost:8080/api/v1/vehicles/total
+curl http://localhost:8080/api/v1/vehicles/capacity/total
+
 # Generate
 curl -X POST http://localhost:8080/api/v1/routes/generate \
   -H "Content-Type: application/json" \
   -d '{"regenerate":false}'
+
+# Latest generation (any date)
+curl http://localhost:8080/api/v1/routes
+
+# Today's generation (replace with today's IST date)
+curl http://localhost:8080/api/v1/routes/2026-08-25
 ```
 
 ## Run with Docker

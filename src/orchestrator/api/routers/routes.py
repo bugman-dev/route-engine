@@ -6,11 +6,7 @@ from sqlalchemy.orm import Session
 from orchestrator.api.schemas import GenerateRoutesBody, RouteGenerationOut
 from orchestrator.db import get_db
 from orchestrator.services.engine_client import EngineClientError
-from orchestrator.services.route_service import (
-    RouteService,
-    RouteServiceError,
-    service_date_now,
-)
+from orchestrator.services.route_service import RouteService, RouteServiceError
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 
@@ -34,11 +30,12 @@ def generate_routes(body: GenerateRoutesBody, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=RouteGenerationOut)
-def get_route_today(db: Session = Depends(get_db)):
+def get_latest_route(db: Session = Depends(get_db)):
+    """Return the most recently generated route set (any service date)."""
     service = RouteService(db)
-    result = service.get_for_date(service_date_now())
+    result = service.get_latest()
     if result is None:
-        raise HTTPException(status_code=404, detail="No route generated for today.")
+        raise HTTPException(status_code=404, detail="No routes have been generated yet.")
     return result
 
 

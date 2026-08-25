@@ -43,7 +43,7 @@ Overview and "ready to generate?" status.
 - Service date (IST, from client clock or first route response)
 - Counts: active waypoints (`GET /api/v1/waypoints/total`), active vehicles (`GET /api/v1/vehicles/total`), depot configured?
 - Fleet capacity vs total demand (`GET /api/v1/vehicles/capacity/total`, `GET /api/v1/waypoints/demand/total`)
-- Today's route status: not generated / cached / last generated at
+- Latest route status via `GET /api/v1/routes` (any date); for a specific day use `GET /api/v1/routes/{YYYY-MM-DD}`
 - System health (`GET /health`)
 - Primary CTA: **Generate routes**
 
@@ -174,11 +174,14 @@ Each item in `routes[]`:
 - Right: map with colored polylines per vehicle
 - Expandable row: stop sequence + leg distance/duration
 
-**History**
+**History / fetch**
 
-- Today: `GET /api/v1/routes`
-- Specific date: `GET /api/v1/routes/{YYYY-MM-DD}`
-- No "list all dates" API — v1 can use a date picker only
+| Need | Endpoint |
+|------|----------|
+| Most recent generation (any day) | `GET /api/v1/routes` |
+| Plan for a specific day (incl. today) | `GET /api/v1/routes/{YYYY-MM-DD}` |
+
+No "list all dates" API — v1 can use a date picker only.
 
 ---
 
@@ -208,8 +211,8 @@ Store UI defaults in localStorage:
 ### Flow B — Daily dispatch (returning user)
 
 ```text
-1. Dashboard → "Routes already generated today" (cached)
-2. Routes → view today's plan
+1. Dashboard → load latest via GET /api/v1/routes (or today's date via /routes/{date})
+2. Routes → view plan (service_date + generated_at)
 3. Optional: deactivate a vehicle / waypoint → Regenerate (regenerate: true)
 ```
 
@@ -252,7 +255,7 @@ Store UI defaults in localStorage:
 | Create vehicles | POST | `/api/v1/vehicles` (array) |
 | Update vehicle | PATCH | `/api/v1/vehicles/{id}` |
 | Generate routes | POST | `/api/v1/routes/generate` |
-| Today's routes | GET | `/api/v1/routes` |
+| Latest routes | GET | `/api/v1/routes` |
 | Routes by date | GET | `/api/v1/routes/{date}` |
 
 OpenAPI: http://localhost:8080/docs
@@ -267,6 +270,7 @@ OpenAPI: http://localhost:8080/docs
 | No depot / multiple depots | 400 | Fix depot in Waypoints |
 | No active fleet | 400 | Add or activate vehicles |
 | Insufficient capacity | 400/502 | "Fleet capacity too low for demand" |
+| No routes yet | 404 | "No routes have been generated yet" |
 | No route for date | 404 | "No routes for this date — generate first" |
 | Engine down | 502 | "Routing service unavailable" |
 
@@ -286,7 +290,7 @@ OpenAPI: http://localhost:8080/docs
 5. **Route timeline** — stops with distance/duration chips
 6. **Generate drawer** — provider, cost_mode, regenerate
 7. **Toast notifications** — success / 409 / 400 / 502
-8. **Empty states** — "No waypoints yet", "No routes for today"
+8. **Empty states** — "No waypoints yet", "No routes generated yet"
 
 ---
 
@@ -296,7 +300,8 @@ OpenAPI: http://localhost:8080/docs
 
 - CRUD via list + PATCH (no delete)
 - Bulk create via array POST
-- Generate + view today
+- Totals APIs for waypoints, demand, vehicles, capacity
+- Generate + view **latest** routes (`GET /routes`) or by date
 - Date picker for historical day
 - Map + route list
 

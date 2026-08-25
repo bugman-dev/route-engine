@@ -114,6 +114,14 @@ class RouteGenerationRepository:
         )
         return self.db.scalars(stmt).first()
 
+    def latest(self) -> Optional[RouteGenerationRow]:
+        stmt = (
+            select(RouteGenerationRow)
+            .order_by(RouteGenerationRow.generated_at.desc())
+            .limit(1)
+        )
+        return self.db.scalars(stmt).first()
+
     def create(self, row: RouteGenerationRow) -> RouteGenerationRow:
         self.db.add(row)
         self.db.commit()

@@ -258,6 +258,11 @@ def test_api_waypoints_and_generate_with_mock_engine(db_session, monkeypatch):
     assert cached.status_code == 200
     assert cached.json()["cached"] is True
 
-    today = client.get("/api/v1/routes")
-    assert today.status_code == 200
-    assert today.json()["routes"]
+    latest = client.get("/api/v1/routes")
+    assert latest.status_code == 200
+    assert latest.json()["routes"]
+    assert latest.json()["service_date"] == generated.json()["service_date"]
+
+    by_date = client.get(f"/api/v1/routes/{generated.json()['service_date']}")
+    assert by_date.status_code == 200
+    assert by_date.json()["routes"]

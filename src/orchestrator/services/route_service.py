@@ -124,6 +124,12 @@ class RouteService:
             return None
         return generation_to_response(row, cached=True)
 
+    def get_latest(self) -> Optional[Dict[str, Any]]:
+        row = self.generations.latest()
+        if row is None:
+            return None
+        return generation_to_response(row, cached=True)
+
     def generate(
         self,
         *,

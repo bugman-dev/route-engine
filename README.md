@@ -1,41 +1,53 @@
 # Route Engine
 
-A generic multi-vehicle route generation engine exposed as an HTTP API.
-Given a depot, demand waypoints, and a vehicle fleet with capacities, it
-builds feasible routes that minimize total travel cost using Google OR-Tools
-(CVRP).
+A capacitated multi-vehicle route generation stack (CVRP) with:
 
-The same engine can power office cab allocation, delivery fleets, field
-service, or any similar capacitated routing problem. All input and output
-goes through JSON request/response payloads.
+- **Orchestrator** (public API, MySQL) — waypoints, vehicles, daily routes
+- **Route engine** (internal) — OR-Tools optimization
+- **OSRM** (internal, optional) — road distance / ETA matrices
+
+External applications should call the **orchestrator only**
+(`http://localhost:8080`). The engine and OSRM stay on the private Docker
+network.
 
 ## Current capabilities
 
-- HTTP API (FastAPI) — sole input/output surface
-- Capacitated vehicle routing (assign stops to vehicles and order them)
-- Capacity validation (total demand vs fleet capacity)
-- Distance providers:
-  - **Haversine** — straight-line km only (works offline)
-  - **OSRM** — road-network distance km + duration (ETA) seconds
-- Cost selection (`distance` or `eta`); with OSRM, each route includes both
-  distance and duration details regardless of which one was optimized
-- Docker Compose stack: route-engine + private OSRM on one network
+- Orchestrator HTTP API + MySQL persistence
+- Same-day route cache (IST) with optional `regenerate: true`
+- Fleet totals: waypoint count, demand sum, vehicle count, capacity sum
+- `GET /api/v1/routes` returns the **latest** generation (any date); pass
+  `?service_date=YYYY-MM-DD` for a specific day (including today)
+- Capacitated vehicle routing via internal route-engine
+- Distance providers: Haversine (offline) and OSRM (road network)
+- Docker Compose: orchestrator + MySQL + route-engine + OSRM
 
 ## Not yet implemented
 
 - Auth / rate limiting
-- External / persistent input sources
+- Alembic migrations (tables are created on orchestrator startup for now)
 - Automated / scheduled OSM map refresh for OSRM
+- Multi-depot / multi-tenant routing
 
-## Stack (today)
+## Stack
 
 - Python 3.9+
 - FastAPI + Uvicorn
+- SQLAlchemy 2 + MySQL 8
 - Google OR-Tools
 - Pydantic
-- OSRM (optional; HTTP Table service; self-host via Docker)
+- OSRM (optional; self-host via Docker)
 
-## Setup (local, without Docker)
+## Architecture
+
+```text
+External app
+    → orchestrator (:8080)
+         → MySQL
+         → route-engine (:8000, internal)
+              → osrm (:5000, internal)
+```
+
+## Setup
 
 ```bash
 python -m venv .venv
@@ -47,16 +59,8 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -e .
+pip install -e ".[test]"   # for pytest
 ```
-
-For tests:
-
-```bash
-pip install -e ".[test]"
-pytest
-```
-
-Copy the sample env file and edit if needed:
 
 ```bash
 # Windows
@@ -66,85 +70,162 @@ copy .env.sample .env
 cp .env.sample .env
 ```
 
-| Variable | Values | Meaning |
-|----------|--------|---------|
-| `ROUTE_ENGINE_PROVIDER` | `haversine` \| `osrm` | Default travel matrix source |
-| `ROUTE_ENGINE_COST` | `distance` \| `eta` | Default matrix OR-Tools minimizes |
-| `OSRM_BASE_URL` | URL | OSRM server (when provider is `osrm`) |
-| `OSRM_MAP` | basename | Prepared map name under `osrm-data/` (Compose) |
+| Variable | Meaning |
+|----------|---------|
+| `ROUTE_ENGINE_PROVIDER` | Engine default: `haversine` \| `osrm` |
+| `ROUTE_ENGINE_COST` | Engine default: `distance` \| `eta` |
+| `OSRM_BASE_URL` | OSRM URL (Compose: `http://osrm:5000` for engine + orchestrator health) |
+| `OSRM_MAP` | Prepared map basename under `osrm-data/` |
+| `DATABASE_URL` | SQLAlchemy URL for the orchestrator |
+| `ENGINE_BASE_URL` | Route-engine base URL (Compose: `http://route-engine:8000`) |
+| `ORCHESTRATOR_TZ` | Calendar day timezone (default `Asia/Kolkata`) |
+| `HEALTH_HTTP_TIMEOUT_SECONDS` | Timeout for engine/OSRM probes in `GET /health` (default `3`) |
+| `MYSQL_*` | MySQL bootstrap credentials for Compose |
 
-Request body may override `provider` and `cost_mode`. With **haversine**, only
-distance exists — `cost_mode=eta` is ignored.
+## Orchestrator API (public)
 
-`.env` is gitignored; `.env.sample` is the committed template.
-Config reaches containers via Compose `env_file` (nothing secret is baked into the image).
+Base URL: `http://localhost:8080`
 
-## Run the API locally
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/health` | Health: database, route-engine, OSRM |
+| `POST` | `/api/v1/waypoints` | Add waypoints (JSON array) |
+| `GET` | `/api/v1/waypoints?active_only=&depot=` | List waypoints (`depot=true` = depots only) |
+| `GET` | `/api/v1/waypoints/total?active_only=` | Total waypoint count (default active) |
+| `GET` | `/api/v1/waypoints/demand/total?active_only=` | Sum of waypoint demand (default active) |
+| `PATCH` | `/api/v1/waypoints/{id}` | Update (incl. `is_active`, `is_depot`) |
+| `POST` | `/api/v1/vehicles` | Add vehicles (JSON array) |
+| `GET` | `/api/v1/vehicles?active_only=` | List vehicles |
+| `GET` | `/api/v1/vehicles/total?active_only=` | Total vehicle count (default active) |
+| `GET` | `/api/v1/vehicles/capacity/total?active_only=` | Sum of vehicle capacity (default active) |
+| `PATCH` | `/api/v1/vehicles/{id}` | Update (incl. `is_active`) |
+| `POST` | `/api/v1/routes/generate` | Generate or return today's cached routes |
+| `GET` | `/api/v1/routes?service_date=` | Latest generation, or for a given date if `service_date` is set |
 
-```bash
-python -m uvicorn route_engine.api.app:app --reload
+Docs: http://localhost:8080/docs
+
+### Health
+
+`GET /health` probes MySQL, the route-engine (`ENGINE_BASE_URL/health`), and
+OSRM (`OSRM_BASE_URL/nearest/v1/driving/0,0` — a lightweight request; OSRM's
+own `/health` returns 400 on some `osrm-routed` builds). Overall `status` is
+`ok` only when all three are reachable; otherwise `degraded`.
+
+```json
+{
+  "status": "ok",
+  "database": "ok",
+  "engine": "ok",
+  "osrm": "ok"
+}
 ```
 
-Or:
+Each dependency field is `"ok"` or `"unavailable"`.
 
-```bash
-route-engine-api
+### Generate body
+
+```json
+{
+  "provider": "osrm",
+  "cost_mode": "distance",
+  "regenerate": false
+}
 ```
 
-- Docs: http://127.0.0.1:8000/docs
-- Health: `GET /health`
-- Generate: `POST /api/v1/routes/generate`
+- Uses only DB rows with `is_active=true`.
+- Requires exactly one active waypoint with `is_depot=true` (sent to the engine as depot index `0`).
+- If a generation already exists for today and `regenerate` is false, returns it with `cached: true`.
+- If `regenerate` is true, calls the engine again and stores a new row.
+
+### Totals (dashboard metrics)
+
+All totals default to **active** rows only (`active_only=true`). Pass
+`?active_only=false` to include inactive rows.
+
+| Endpoint | Response |
+|----------|----------|
+| `GET /api/v1/waypoints/total` | `{"total_waypoints": 15, "active_only": true}` |
+| `GET /api/v1/waypoints/demand/total` | `{"total_demand": 14, "active_only": true}` |
+| `GET /api/v1/vehicles/total` | `{"total_vehicles": 4, "active_only": true}` |
+| `GET /api/v1/vehicles/capacity/total` | `{"total_capacity": 14, "active_only": true}` |
+
+### Fetching routes
+
+| Request | Behavior |
+|---------|----------|
+| `GET /api/v1/routes` | Most recently generated route set (by `generated_at`), **any** service date |
+| `GET /api/v1/routes?service_date=YYYY-MM-DD` | Latest generation for that calendar date (IST) |
+
+Both return the same shape as generate (`cached`, `service_date`, `generated_at`,
+`was_regenerated`, `provider`, `cost_mode`, `routes`).  
+`404` if nothing has been generated yet / nothing for that date.
+
+### Example flow
+
+```bash
+# Waypoints (array — one or many)
+curl -X POST http://localhost:8080/api/v1/waypoints \
+  -H "Content-Type: application/json" \
+  -d '[
+    {"external_id":"DEPOT","name":"Depot","latitude":8.5241,"longitude":76.9366,"demand":0,"is_depot":true},
+    {"name":"Stop A","latitude":8.54,"longitude":76.91}
+  ]'
+
+# Vehicles (array — one or many)
+curl -X POST http://localhost:8080/api/v1/vehicles \
+  -H "Content-Type: application/json" \
+  -d '[{"number":"KA01","operator":"Alex","capacity":4}]'
+
+# Dashboard totals
+curl http://localhost:8080/api/v1/waypoints/total
+curl http://localhost:8080/api/v1/waypoints/demand/total
+curl http://localhost:8080/api/v1/vehicles/total
+curl http://localhost:8080/api/v1/vehicles/capacity/total
+
+# Generate
+curl -X POST http://localhost:8080/api/v1/routes/generate \
+  -H "Content-Type: application/json" \
+  -d '{"regenerate":false}'
+
+# Latest generation (any date)
+curl http://localhost:8080/api/v1/routes
+
+# Generation for a specific date
+curl "http://localhost:8080/api/v1/routes?service_date=2026-08-25"
+```
 
 ## Run with Docker
 
 Requires Docker Desktop (Linux containers).
 
 ```text
-Client → route-engine (:8000) → osrm (:5000, private on compose network)
+Client → orchestrator (:8080) → MySQL
+                            → route-engine → osrm
 ```
 
 ### 1. Env file
 
 ```bash
-# Windows
-copy .env.sample .env
-
-# macOS / Linux
-cp .env.sample .env
+copy .env.sample .env   # Windows
+cp .env.sample .env     # macOS / Linux
 ```
 
-### 2. OSRM map data (download + prepare)
+### 2. OSRM map data (optional if using Haversine only)
 
-Map extracts and prepared graphs live under `osrm-data/`. They are **gitignored**
-(only `osrm-data/README.md` is committed). Prefer a small region that covers your
-service area — large extracts need much more RAM and time.
+Map extracts and prepared graphs live under `osrm-data/` (gitignored except
+`README.md`). Prefer a small region.
 
 #### Download
 
 1. Open [Geofabrik downloads](https://download.geofabrik.de/).
-2. Pick a region (e.g. Asia → India → a state, or a custom zone extract).
-3. Download the `.osm.pbf` file into `osrm-data/`.
+2. Download a `.osm.pbf` into `osrm-data/`.
 
-Example (basename without extension is what you use everywhere else):
-
-```text
-osrm-data/southern-zone-260718.osm.pbf
-→ OSRM_MAP=southern-zone-260718
-```
+Example: `osrm-data/southern-zone-260718.osm.pbf` → `OSRM_MAP=southern-zone-260718`.
 
 #### Prepare the graph (one-time per map)
 
-macOS / Linux:
-
-```bash
-chmod +x scripts/prepare_osrm.sh
-./scripts/prepare_osrm.sh southern-zone-260718
-```
-
-Windows PowerShell (from the project root):
-
 ```powershell
-$MAP = "southern-zone-260718"   # must match the .osm.pbf basename
+$MAP = "southern-zone-260718"
 $IMAGE = "ghcr.io/project-osrm/osrm-backend:v5.27.1"
 $data = (Resolve-Path .\osrm-data).Path
 
@@ -158,40 +239,16 @@ docker run --rm -t -v "${data}:/data" $IMAGE `
   osrm-customize "/data/${MAP}.osrm"
 ```
 
-After this, `osrm-data/` will contain many `<map>.osrm.*` files. That is expected.
-
-#### Point the app at the map
-
-In `.env`:
-
-```env
-ROUTE_ENGINE_PROVIDER=osrm
-OSRM_MAP=southern-zone-260718
-```
-
-(`OSRM_BASE_URL` is overridden to `http://osrm:5000` by Compose for the app.)
+macOS / Linux: `./scripts/prepare_osrm.sh <map-basename>`
 
 #### Replace / remove existing map data
 
-Before installing a **new** region (or a newer extract of the same region),
-stop the stack and clear the old files so they are not mixed:
-
 ```powershell
-# From the project root
 docker compose down
-
-# Windows — remove everything except README.md
 Get-ChildItem .\osrm-data -Exclude README.md | Remove-Item -Recurse -Force
 ```
 
-```bash
-# macOS / Linux
-docker compose down
-find osrm-data -mindepth 1 ! -name 'README.md' -exec rm -rf {} +
-```
-
-Then download the new `.osm.pbf`, run prepare again, update `OSRM_MAP` in `.env`,
-and start Compose.
+Then download, prepare, update `OSRM_MAP`, and start Compose again.
 
 ### 3. Start the stack
 
@@ -200,111 +257,54 @@ docker compose build
 docker compose up
 ```
 
-API docs: http://localhost:8000/docs
+- Public API: http://localhost:8080/docs
+- Engine/OSRM are not published by default (internal network only)
+
+Set `ROUTE_ENGINE_PROVIDER=osrm` in `.env` once map data is ready; otherwise
+leave `haversine` for offline distance.
 
 Notes:
 
-- Keep OSRM private — only publish the FastAPI port (`8000`) in production.
-- OSRM travel times are profile-based estimates (from `car.lua`), not live traffic.
-- Until map data is prepared, you can leave `ROUTE_ENGINE_PROVIDER=haversine`
-  and still start the app (OSRM will fail only when provider is `osrm`).
+- Keep OSRM private — only publish the orchestrator port (`8080`) in production.
+- OSRM travel times are profile-based estimates, not live traffic.
 - If `docker pull ghcr.io/project-osrm/osrm-backend:...` fails with “denied”,
   try `docker logout ghcr.io` and pull again.
 
-### Example request
+## Route engine (internal)
+
+The engine still exposes `POST /api/v1/routes/generate` for in-network callers
+(the orchestrator). Payload shape is unchanged: `waypoints`, `vehicles`,
+`depot`, optional `provider` / `cost_mode`.
+
+Local debug (without orchestrator):
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/routes/generate ^
-  -H "Content-Type: application/json" ^
-  -d "{\"waypoints\":[{\"id\":\"DEPOT\",\"name\":\"Depot\",\"latitude\":8.5241,\"longitude\":76.9366,\"demand\":0},{\"id\":\"WP001\",\"name\":\"Waypoint 1\",\"latitude\":8.5588,\"longitude\":76.8812},{\"id\":\"WP002\",\"name\":\"Waypoint 2\",\"latitude\":8.5104,\"longitude\":76.8987},{\"id\":\"WP003\",\"name\":\"Waypoint 3\",\"latitude\":8.6050,\"longitude\":76.9500}],\"vehicles\":[{\"id\":\"VH001\",\"number\":\"KL01TS1001\",\"operator\":\"James\",\"capacity\":4},{\"id\":\"VH002\",\"number\":\"KL01TS2002\",\"operator\":\"Thomas\",\"capacity\":3}],\"depot\":0,\"provider\":\"haversine\",\"cost_mode\":\"distance\"}"
+python -m uvicorn route_engine.api.app:app --reload --port 8000
 ```
 
-macOS / Linux:
+## Tests
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/routes/generate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "waypoints": [
-      {"id": "DEPOT", "name": "Depot", "latitude": 8.5241, "longitude": 76.9366, "demand": 0},
-      {"id": "WP001", "name": "Waypoint 1", "latitude": 8.5588, "longitude": 76.8812},
-      {"id": "WP002", "name": "Waypoint 2", "latitude": 8.5104, "longitude": 76.8987},
-      {"id": "WP003", "name": "Waypoint 3", "latitude": 8.6050, "longitude": 76.9500}
-    ],
-    "vehicles": [
-      {"id": "VH001", "number": "KL01TS1001", "operator": "James", "capacity": 4},
-      {"id": "VH002", "number": "KL01TS2002", "operator": "Thomas", "capacity": 3}
-    ],
-    "depot": 0,
-    "provider": "haversine",
-    "cost_mode": "distance"
-  }'
-```
-
-### Example response shape (OSRM)
-
-```json
-{
-  "provider": "osrm",
-  "cost_mode": "eta",
-  "routes": [
-    {
-      "vehicle_id": "VH001",
-      "vehicle_number": "KL01TS1001",
-      "operator": "James",
-      "capacity": 4,
-      "stops": ["Depot", "Waypoint 12", "Waypoint 2", "Depot"],
-      "cost_mode": "eta",
-      "etas_seconds": [0, 462, 1132, 1699],
-      "total_duration_seconds": 1699,
-      "leg_distances_km": [5, 2, 8],
-      "total_distance_km": 15
-    }
-  ]
-}
-```
-
-With OSRM, routes always include both duration (`etas_seconds`,
-`total_duration_seconds`) and distance (`leg_distances_km`,
-`total_distance_km`). `cost_mode` only chooses what OR-Tools minimizes.
-With Haversine, only distance fields are populated (no road ETAs).
-
-## Core library (in-process)
-
-```python
-from route_engine import generate_routes
-from route_engine.services.distance import HaversineDistanceProvider
-
-routes = generate_routes(
-    waypoints,
-    vehicles,
-    depot,
-    distance_provider=HaversineDistanceProvider(),
-    cost_mode="distance",
-)
+pip install -e ".[test]"
+python -m pytest
 ```
 
 ## Project layout
 
 ```text
-src/route_engine/
-  api/              # FastAPI — sole HTTP entrypoint
-  constants.py      # shared strings (cost modes, providers, env keys)
-  engine/           # orchestration + OR-Tools solver
-  models/           # Waypoint, Vehicle, Route
-  services/
-    distance/       # Haversine + OSRM providers
-    provider_factory.py
-  validators/
-  utils/
-Dockerfile
-docker-compose.yml
+src/route_engine/       # Internal CVRP engine + OSRM/Haversine
+src/orchestrator/       # Public API + MySQL + engine HTTP client
+Dockerfile              # route-engine image
+Dockerfile.orchestrator # orchestrator image
+docker-compose.yml      # mysql + orchestrator + route-engine + osrm
 scripts/prepare_osrm.sh
-osrm-data/          # map extracts + prepared graph (gitignored contents)
-tests/              # pytest (engine, API, mocked OSRM)
+osrm-data/
+tests/
 ```
 
 ## Roadmap
 
-1. Richer constraints (time windows, skills, etc.) as needed
-2. Automated OSM refresh / map update pipeline for OSRM
+1. Auth / API keys for the orchestrator
+2. Alembic migrations
+3. Automated OSM refresh pipeline
+4. Richer routing constraints as needed

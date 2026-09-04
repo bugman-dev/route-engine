@@ -1,19 +1,23 @@
 services:
-  route-engine:
-    build: .
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
+  mysql:
+    image: mysql:8.4
     environment:
-      # Inside the compose network, OSRM is reached by service name (not localhost).
-      OSRM_BASE_URL: http://osrm:5000
-    depends_on:
-      - osrm
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-route_engine}
+      MYSQL_USER: ${MYSQL_USER:-route}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-route}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     restart: unless-stopped
+    ports:
+      - "3306:3306"
 
   osrm:
-    # Pin the image version for reproducible deploys.
     image: ghcr.io/project-osrm/osrm-backend:v5.27.1
     command: >
       osrm-routed --algorithm mld --max-table-size 10000
@@ -21,7 +25,45 @@ services:
     volumes:
       - ./osrm-data:/data
     restart: unless-stopped
-    # OSRM stays private on the compose network.
-    # Uncomment to debug from the host:
+    # Private on the compose network. Uncomment to debug from the host:
     # ports:
     #   - "5000:5000"
+
+  route-engine:
+    build: .
+    env_file:
+      - .env
+    environment:
+      OSRM_BASE_URL: http://osrm:5000
+    depends_on:
+      - osrm
+    restart: unless-stopped
+    # Internal only — external clients should call the orchestrator.
+    # Uncomment to debug the engine from the host:
+    # ports:
+    #   - "8000:8000"
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-route}:${MYSQL_PASSWORD:-route}@mysql:3306/${MYSQL_DATABASE:-route_engine}
+      ENGINE_BASE_URL: http://route-engine:8000
+      OSRM_BASE_URL: http://osrm:5000
+      ORCHESTRATOR_TZ: ${ORCHESTRATOR_TZ:-Asia/Kolkata}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      route-engine:
+        condition: service_started
+      osrm:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

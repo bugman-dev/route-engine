@@ -15,8 +15,8 @@ network.
 - Orchestrator HTTP API + MySQL persistence
 - Same-day route cache (IST) with optional `regenerate: true`
 - Fleet totals: waypoint count, demand sum, vehicle count, capacity sum
-- `GET /api/v1/routes` returns the **latest** generation (any date); use
-  `GET /api/v1/routes/{date}` for a specific day (including today)
+- `GET /api/v1/routes` returns the **latest** generation (any date); pass
+  `?service_date=YYYY-MM-DD` for a specific day (including today)
 - Capacitated vehicle routing via internal route-engine
 - Distance providers: Haversine (offline) and OSRM (road network)
 - Docker Compose: orchestrator + MySQL + route-engine + OSRM
@@ -74,11 +74,12 @@ cp .env.sample .env
 |----------|---------|
 | `ROUTE_ENGINE_PROVIDER` | Engine default: `haversine` \| `osrm` |
 | `ROUTE_ENGINE_COST` | Engine default: `distance` \| `eta` |
-| `OSRM_BASE_URL` | OSRM URL (Compose sets `http://osrm:5000` for the engine) |
+| `OSRM_BASE_URL` | OSRM URL (Compose: `http://osrm:5000` for engine + orchestrator health) |
 | `OSRM_MAP` | Prepared map basename under `osrm-data/` |
 | `DATABASE_URL` | SQLAlchemy URL for the orchestrator |
 | `ENGINE_BASE_URL` | Route-engine base URL (Compose: `http://route-engine:8000`) |
 | `ORCHESTRATOR_TZ` | Calendar day timezone (default `Asia/Kolkata`) |
+| `HEALTH_HTTP_TIMEOUT_SECONDS` | Timeout for engine/OSRM probes in `GET /health` (default `3`) |
 | `MYSQL_*` | MySQL bootstrap credentials for Compose |
 
 ## Orchestrator API (public)
@@ -87,9 +88,9 @@ Base URL: `http://localhost:8080`
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/health` | Health + DB ping |
+| `GET` | `/health` | Health: database, route-engine, OSRM |
 | `POST` | `/api/v1/waypoints` | Add waypoints (JSON array) |
-| `GET` | `/api/v1/waypoints?active_only=` | List waypoints |
+| `GET` | `/api/v1/waypoints?active_only=&depot=` | List waypoints (`depot=true` = depots only) |
 | `GET` | `/api/v1/waypoints/total?active_only=` | Total waypoint count (default active) |
 | `GET` | `/api/v1/waypoints/demand/total?active_only=` | Sum of waypoint demand (default active) |
 | `PATCH` | `/api/v1/waypoints/{id}` | Update (incl. `is_active`, `is_depot`) |
@@ -99,10 +100,27 @@ Base URL: `http://localhost:8080`
 | `GET` | `/api/v1/vehicles/capacity/total?active_only=` | Sum of vehicle capacity (default active) |
 | `PATCH` | `/api/v1/vehicles/{id}` | Update (incl. `is_active`) |
 | `POST` | `/api/v1/routes/generate` | Generate or return today's cached routes |
-| `GET` | `/api/v1/routes` | Latest generated route set (any date) |
-| `GET` | `/api/v1/routes/{YYYY-MM-DD}` | Latest route for a date (use today for today's) |
+| `GET` | `/api/v1/routes?service_date=` | Latest generation, or for a given date if `service_date` is set |
 
 Docs: http://localhost:8080/docs
+
+### Health
+
+`GET /health` probes MySQL, the route-engine (`ENGINE_BASE_URL/health`), and
+OSRM (`OSRM_BASE_URL/nearest/v1/driving/0,0` — a lightweight request; OSRM's
+own `/health` returns 400 on some `osrm-routed` builds). Overall `status` is
+`ok` only when all three are reachable; otherwise `degraded`.
+
+```json
+{
+  "status": "ok",
+  "database": "ok",
+  "engine": "ok",
+  "osrm": "ok"
+}
+```
+
+Each dependency field is `"ok"` or `"unavailable"`.
 
 ### Generate body
 
@@ -133,10 +151,10 @@ All totals default to **active** rows only (`active_only=true`). Pass
 
 ### Fetching routes
 
-| Endpoint | Behavior |
-|----------|----------|
+| Request | Behavior |
+|---------|----------|
 | `GET /api/v1/routes` | Most recently generated route set (by `generated_at`), **any** service date |
-| `GET /api/v1/routes/{YYYY-MM-DD}` | Latest generation for that calendar date (IST). Pass today's date for today's plan |
+| `GET /api/v1/routes?service_date=YYYY-MM-DD` | Latest generation for that calendar date (IST) |
 
 Both return the same shape as generate (`cached`, `service_date`, `generated_at`,
 `was_regenerated`, `provider`, `cost_mode`, `routes`).  
@@ -172,8 +190,8 @@ curl -X POST http://localhost:8080/api/v1/routes/generate \
 # Latest generation (any date)
 curl http://localhost:8080/api/v1/routes
 
-# Today's generation (replace with today's IST date)
-curl http://localhost:8080/api/v1/routes/2026-08-25
+# Generation for a specific date
+curl "http://localhost:8080/api/v1/routes?service_date=2026-08-25"
 ```
 
 ## Run with Docker

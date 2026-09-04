@@ -12,11 +12,15 @@ from orchestrator.constants import (
     DEFAULT_DATABASE_URL,
     DEFAULT_ENGINE_BASE_URL,
     DEFAULT_ENGINE_TIMEOUT_SECONDS,
+    DEFAULT_HEALTH_TIMEOUT_SECONDS,
+    DEFAULT_OSRM_BASE_URL,
     DEFAULT_TIMEZONE,
     ENV_DATABASE_URL,
     ENV_ENGINE_BASE_URL,
     ENV_ENGINE_TIMEOUT,
+    ENV_HEALTH_TIMEOUT,
     ENV_ORCHESTRATOR_TZ,
+    ENV_OSRM_BASE_URL,
 )
 
 # src/orchestrator/config.py -> project root
@@ -39,8 +43,15 @@ class Settings:
         self.engine_base_url = os.environ.get(
             ENV_ENGINE_BASE_URL, DEFAULT_ENGINE_BASE_URL
         ).rstrip("/")
+        self.osrm_base_url = os.environ.get(
+            ENV_OSRM_BASE_URL, DEFAULT_OSRM_BASE_URL
+        ).rstrip("/")
         self.timezone = os.environ.get(ENV_ORCHESTRATOR_TZ, DEFAULT_TIMEZONE)
         timeout_raw = os.environ.get(
             ENV_ENGINE_TIMEOUT, str(DEFAULT_ENGINE_TIMEOUT_SECONDS)
         )
         self.engine_timeout_seconds = float(timeout_raw)
+        health_timeout_raw = os.environ.get(
+            ENV_HEALTH_TIMEOUT, str(DEFAULT_HEALTH_TIMEOUT_SECONDS)
+        )
+        self.health_timeout_seconds = float(health_timeout_raw)

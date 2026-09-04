@@ -50,9 +50,15 @@ def add_waypoints(
 @router.get("", response_model=List[WaypointOut])
 def get_waypoints(
     active_only: bool = Query(False),
+    depot: bool | None = Query(
+        None,
+        description="If true, only depots; if false, only non-depots; omit for all.",
+    ),
     db: Session = Depends(get_db),
 ):
-    return list(WaypointRepository(db).list(active_only=active_only))
+    return list(
+        WaypointRepository(db).list(active_only=active_only, depot=depot)
+    )
 
 
 @router.get("/total", response_model=TotalWaypointsOut)

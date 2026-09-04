@@ -1,6 +1,7 @@
 from datetime import date
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from orchestrator.api.schemas import GenerateRoutesBody, RouteGenerationOut
@@ -30,22 +31,30 @@ def generate_routes(body: GenerateRoutesBody, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=RouteGenerationOut)
-def get_latest_route(db: Session = Depends(get_db)):
-    """Return the most recently generated route set (any service date)."""
+def get_routes(
+    service_date: Optional[date] = Query(
+        None,
+        description=(
+            "If set, return the latest generation for that date. "
+            "If omitted, return the most recently generated route set."
+        ),
+    ),
+    db: Session = Depends(get_db),
+):
+    """Fetch routes: latest overall, or filtered by optional service_date."""
     service = RouteService(db)
+    if service_date is not None:
+        result = service.get_for_date(service_date)
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No route generated for {service_date.isoformat()}.",
+            )
+        return result
+
     result = service.get_latest()
     if result is None:
-        raise HTTPException(status_code=404, detail="No routes have been generated yet.")
-    return result
-
-
-@router.get("/{service_date}", response_model=RouteGenerationOut)
-def get_route_for_date(service_date: date, db: Session = Depends(get_db)):
-    service = RouteService(db)
-    result = service.get_for_date(service_date)
-    if result is None:
         raise HTTPException(
-            status_code=404,
-            detail=f"No route generated for {service_date.isoformat()}.",
+            status_code=404, detail="No routes have been generated yet."
         )
     return result

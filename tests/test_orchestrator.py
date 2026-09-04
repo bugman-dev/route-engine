@@ -177,6 +177,11 @@ def test_api_waypoints_and_generate_with_mock_engine(db_session, monkeypatch):
     from orchestrator.api.app import create_app
     from orchestrator.services import route_service as route_service_module
 
+    monkeypatch.setattr(
+        "orchestrator.services.health_checks.check_http_reachable",
+        lambda url, timeout_seconds: True,
+    )
+
     fake_client = MagicMock()
     fake_client.generate_routes.return_value = {
         "provider": "haversine",
@@ -198,7 +203,11 @@ def test_api_waypoints_and_generate_with_mock_engine(db_session, monkeypatch):
 
     health = client.get("/health")
     assert health.status_code == 200
-    assert health.json()["database"] == "ok"
+    body = health.json()
+    assert body["database"] == "ok"
+    assert body["engine"] == "ok"
+    assert body["osrm"] == "ok"
+    assert body["status"] == "ok"
 
     created_waypoints = client.post(
         "/api/v1/waypoints",
@@ -232,6 +241,19 @@ def test_api_waypoints_and_generate_with_mock_engine(db_session, monkeypatch):
     assert listed.status_code == 200
     assert len(listed.json()) == 2
 
+    depots = client.get("/api/v1/waypoints", params={"depot": True})
+    assert depots.status_code == 200
+    assert len(depots.json()) == 1
+    assert depots.json()[0]["is_depot"] is True
+    assert depots.json()[0]["external_id"] == "DEPOT"
+
+    non_depots = client.get(
+        "/api/v1/waypoints", params={"active_only": True, "depot": False}
+    )
+    assert non_depots.status_code == 200
+    assert len(non_depots.json()) == 1
+    assert non_depots.json()[0]["is_depot"] is False
+
     total_waypoints = client.get("/api/v1/waypoints/total")
     assert total_waypoints.status_code == 200
     assert total_waypoints.json() == {"total_waypoints": 2, "active_only": True}
@@ -263,6 +285,10 @@ def test_api_waypoints_and_generate_with_mock_engine(db_session, monkeypatch):
     assert latest.json()["routes"]
     assert latest.json()["service_date"] == generated.json()["service_date"]
 
-    by_date = client.get(f"/api/v1/routes/{generated.json()['service_date']}")
+    by_date = client.get(
+        "/api/v1/routes",
+        params={"service_date": generated.json()["service_date"]},
+    )
     assert by_date.status_code == 200
     assert by_date.json()["routes"]
+    assert by_date.json()["service_date"] == generated.json()["service_date"]

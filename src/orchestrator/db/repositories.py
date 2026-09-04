@@ -31,10 +31,16 @@ class WaypointRepository:
     def get(self, waypoint_id: int) -> Optional[WaypointRow]:
         return self.db.get(WaypointRow, waypoint_id)
 
-    def list(self, active_only: bool = False) -> Sequence[WaypointRow]:
+    def list(
+        self,
+        active_only: bool = False,
+        depot: Optional[bool] = None,
+    ) -> Sequence[WaypointRow]:
         stmt = select(WaypointRow).order_by(WaypointRow.id)
         if active_only:
             stmt = stmt.where(WaypointRow.is_active.is_(True))
+        if depot is not None:
+            stmt = stmt.where(WaypointRow.is_depot.is_(depot))
         return self.db.scalars(stmt).all()
 
     def count(self, active_only: bool = True) -> int:

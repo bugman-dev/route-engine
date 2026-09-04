@@ -43,8 +43,8 @@ Overview and "ready to generate?" status.
 - Service date (IST, from client clock or first route response)
 - Counts: active waypoints (`GET /api/v1/waypoints/total`), active vehicles (`GET /api/v1/vehicles/total`), depot configured?
 - Fleet capacity vs total demand (`GET /api/v1/vehicles/capacity/total`, `GET /api/v1/waypoints/demand/total`)
-- Latest route status via `GET /api/v1/routes` (any date); for a specific day use `GET /api/v1/routes/{YYYY-MM-DD}`
-- System health (`GET /health`)
+- Latest route status via `GET /api/v1/routes`; for a specific day use `GET /api/v1/routes?service_date=YYYY-MM-DD`
+- System health (`GET /health` → `database`, `engine`, `osrm`; overall `status`)
 - Primary CTA: **Generate routes**
 
 **Readiness checks** (mirror backend rules):
@@ -63,7 +63,8 @@ Manage stops and depot.
 **List view**
 
 - Table: name, external_id, lat/lng, demand, depot badge, active toggle
-- Filters: All / Active only (`GET /api/v1/waypoints?active_only=true`)
+- Filters: All / Active only (`?active_only=true`) / Depots only (`?depot=true`) / Non-depots (`?depot=false`)
+  - Example: `GET /api/v1/waypoints?active_only=true&depot=true`
 - Map preview (optional): pins for all active waypoints, depot highlighted
 
 **Actions**
@@ -179,7 +180,7 @@ Each item in `routes[]`:
 | Need | Endpoint |
 |------|----------|
 | Most recent generation (any day) | `GET /api/v1/routes` |
-| Plan for a specific day (incl. today) | `GET /api/v1/routes/{YYYY-MM-DD}` |
+| Plan for a specific day (incl. today) | `GET /api/v1/routes?service_date=YYYY-MM-DD` |
 
 No "list all dates" API — v1 can use a date picker only.
 
@@ -211,7 +212,7 @@ Store UI defaults in localStorage:
 ### Flow B — Daily dispatch (returning user)
 
 ```text
-1. Dashboard → load latest via GET /api/v1/routes (or today's date via /routes/{date})
+1. Dashboard → load latest via `GET /api/v1/routes` (or `?service_date=` for a day)
 2. Routes → view plan (service_date + generated_at)
 3. Optional: deactivate a vehicle / waypoint → Regenerate (regenerate: true)
 ```
@@ -243,8 +244,8 @@ Store UI defaults in localStorage:
 
 | Screen action | Method | Endpoint |
 |---------------|--------|----------|
-| Health | GET | `/health` |
-| List waypoints | GET | `/api/v1/waypoints?active_only=` |
+| Health | GET | `/health` (`status`, `database`, `engine`, `osrm`) |
+| List waypoints | GET | `/api/v1/waypoints?active_only=&depot=` |
 | Total waypoints | GET | `/api/v1/waypoints/total?active_only=` |
 | Total demand | GET | `/api/v1/waypoints/demand/total?active_only=` |
 | Create waypoints | POST | `/api/v1/waypoints` (array) |
@@ -255,8 +256,7 @@ Store UI defaults in localStorage:
 | Create vehicles | POST | `/api/v1/vehicles` (array) |
 | Update vehicle | PATCH | `/api/v1/vehicles/{id}` |
 | Generate routes | POST | `/api/v1/routes/generate` |
-| Latest routes | GET | `/api/v1/routes` |
-| Routes by date | GET | `/api/v1/routes/{date}` |
+| Latest / by-date routes | GET | `/api/v1/routes` or `/api/v1/routes?service_date=` |
 
 OpenAPI: http://localhost:8080/docs
 
@@ -301,7 +301,7 @@ OpenAPI: http://localhost:8080/docs
 - CRUD via list + PATCH (no delete)
 - Bulk create via array POST
 - Totals APIs for waypoints, demand, vehicles, capacity
-- Generate + view **latest** routes (`GET /routes`) or by date
+- Generate + view **latest** routes (`GET /routes`) or by date (`?service_date=`)
 - Date picker for historical day
 - Map + route list
 
